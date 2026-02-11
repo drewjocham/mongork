@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/drewjocham/mongo-migration-tool/internal/cli"
+	"github.com/drewjocham/mongork/internal/cli"
 )
 
 func main() {

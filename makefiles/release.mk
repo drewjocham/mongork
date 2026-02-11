@@ -27,6 +27,6 @@ release-beta: ## Create and release a new beta version
 	$(ROOT_DIR)/scripts/release-beta.sh
 
 sync-library:
-	MODULE=github.com/drewjocham/mongo-migration-tool; \
+	MODULE=github.com/drewjocham/mongork; \
 	VERSION=v1.0.0; \
 	curl -sS "https://proxy.golang.org/$${MODULE}/@v/$${VERSION}.info"

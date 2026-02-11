@@ -5,12 +5,12 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/drewjocham/mongo-migration-tool/internal/config"
-	logging "github.com/drewjocham/mongo-migration-tool/internal/log"
+	"github.com/drewjocham/mongork/internal/config"
+	logging "github.com/drewjocham/mongork/internal/log"
 	"io"
 	"time"
 
-	"github.com/drewjocham/mongo-migration-tool/internal/migration"
+	"github.com/drewjocham/mongork/internal/migration"
 	"github.com/spf13/cobra"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -47,7 +47,7 @@ func Execute() error {
 func newRootCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
-		Use:     "mongo-tool",
+		Use:     "mongo",
 		Aliases: []string{"mt", "mmt"},
 		Short:   "MongoDB migration toolkit",
 		Version: fmt.Sprintf("%s (commit: %s, build date: %s)", appVersion, commit, date),

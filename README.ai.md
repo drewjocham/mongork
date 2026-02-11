@@ -1,8 +1,8 @@
-# AI Developer Guide: mongo-migration-tool
+# AI Developer Guide: mongork
 
 ## 1. Project Purpose
 
-This project, `mongo-migration-tool`, is a command-line utility designed to manage and execute database migrations for MongoDB. It provides a structured way to apply versioned changes to a MongoDB database, supporting both upward and downward migrations.
+This project, `mongork`, is a command-line utility designed to manage and execute database migrations for MongoDB. It provides a structured way to apply versioned changes to a MongoDB database, supporting both upward and downward migrations.
 
 ## 2. Architecture and Design
 

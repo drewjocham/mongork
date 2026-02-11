@@ -22,7 +22,7 @@ build: deps ## Build the binary
 	cd $(REPO_ROOT) && $(GO_ENV) CGO_ENABLED=0 go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) $(MAIN_PACKAGE)
 
 # --- Configuration ---
-BINARY_NAME  := mongo-migration
+BINARY_NAME  := mongork
 BIN_DIR     := $(REPO_ROOT)/bin
 MAIN_PACKAGE := ./cmd
 

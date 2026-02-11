@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/mongo-migration-tool.iml" filepath="$PROJECT_DIR$/.idea/mongo-migration-tool.iml" />
+      <module fileurl="file://$PROJECT_DIR$/mongork.iml" filepath="$PROJECT_DIR$/mongork.iml" />
     </modules>
   </component>
 </project>

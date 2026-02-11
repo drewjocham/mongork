@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drewjocham/mongo-migration-tool/internal/cli"
-	"github.com/drewjocham/mongo-migration-tool/internal/jsonutil"
+	"github.com/drewjocham/mongork/internal/cli"
+	"github.com/drewjocham/mongork/internal/jsonutil"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/require"
 )

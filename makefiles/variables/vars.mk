@@ -22,18 +22,18 @@ else
 endif
 
 # Build options
-export BINARY_NAME=mongo-tool
+export BINARY_NAME=mongo
 export BUILD_DIR?=$(REPO_ROOT)/build
 # LDFLAGS=-ldflags "-X main.version=$(shell git describe --tags --always)" # Old LDFLAGS
 export LDFLAGS=-ldflags "\
-	-X github.com/drewjocham/mongo-migration-tool/internal/cli.appVersion=$(shell git describe --tags --always)\
-	-X github.com/drewjocham/mongo-migration-tool/internal/cli.commit=$(shell git rev-parse HEAD)\
-	-X github.com/drewjocham/mongo-migration-tool/internal/cli.date=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')\
+	-X github.com/drewjocham/mongork/internal/cli.appVersion=$(shell git describe --tags --always)\
+	-X github.com/drewjocham/mongork/internal/cli.commit=$(shell git rev-parse HEAD)\
+	-X github.com/drewjocham/mongork/internal/cli.date=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')\
 "
 export MAIN_PACKAGE?=./cmd
 
 # Docker options
-export DOCKER_IMAGE=mongo-tool
+export DOCKER_IMAGE=mongo
 export DOCKER_TAG?=latest
 export DOCKERFILE_LOCAL?=$(REPO_ROOT)/$(DOCKER_DIR)/Dockerfile.local
 export DOCKERFILE_MCP?=$(REPO_ROOT)/$(DOCKER_DIR)/Dockerfile.mcp
@@ -46,7 +46,7 @@ export PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/am
 export VERSION := $(shell git describe --tags --always)
 export COMMIT  := $(shell git rev-parse HEAD)
 export DATE    := $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
-export PKG     := github.com/drewjocham/mongo-migration-tool/internal/cli
+export PKG     := github.com/drewjocham/mongork/internal/cli
 
 export LDFLAGS := -ldflags "-s -w \
     -X $(PKG).appVersion=$(VERSION) \

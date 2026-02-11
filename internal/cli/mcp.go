@@ -7,13 +7,13 @@ import (
 	"os"
 	"strings"
 
-	"github.com/drewjocham/mongo-migration-tool/internal/jsonutil"
-	logging "github.com/drewjocham/mongo-migration-tool/internal/log"
-	"github.com/drewjocham/mongo-migration-tool/mcp"
+	"github.com/drewjocham/mongork/internal/jsonutil"
+	logging "github.com/drewjocham/mongork/internal/log"
+	"github.com/drewjocham/mongork/mcp"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
-	_ "github.com/drewjocham/mongo-migration-tool/migrations"
+	_ "github.com/drewjocham/mongork/migrations"
 )
 
 func NewMCPCmd() *cobra.Command {

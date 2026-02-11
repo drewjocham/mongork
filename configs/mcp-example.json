@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "mongo-migration-tool": {
+    "mongork": {
       "command": "docker",
       "args": [
         "run",

@@ -1,4 +1,4 @@
-module github.com/drewjocham/mongo-migration-tool
+module github.com/drewjocham/mongork
 
 go 1.25
 

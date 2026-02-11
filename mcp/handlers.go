@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/drewjocham/mongo-migration-tool/internal/jsonutil"
-	"github.com/drewjocham/mongo-migration-tool/internal/parser"
+	"github.com/drewjocham/mongork/internal/jsonutil"
+	"github.com/drewjocham/mongork/internal/parser"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
@@ -119,7 +119,6 @@ func (s *MCPServer) handleSchema(
 	res, out := newMessageResult(b.String())
 	return res, out, nil
 }
-
 
 func (s *MCPServer) handleCreate(
 	ctx context.Context, _ *mcp.CallToolRequest, args createMigrationArgs,

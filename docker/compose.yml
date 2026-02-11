@@ -5,9 +5,10 @@ x-dev-base: &base
     - mcp_network
 
 services:
-  mongo-cli:
+  mongork-cli:
     <<: *base
-    image: drewjocham/mongo-cli:latest
+    image: drewjocham/mongork-cli:latest
+    container_name: mongork-cli
     build:
       context: ..
       dockerfile: ./docker/Dockerfile.local
@@ -26,9 +27,10 @@ services:
     env_file:
       - .env
 
-  mongo-mcp:
+  mongork-mcp:
     <<: *base
     image: drewjocham/mongo-mcp:latest
+    container_name: mongork-mcp
     build:
       context: ..
       dockerfile: ./docker/Dockerfile.mcp

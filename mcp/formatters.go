@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/drewjocham/mongo-migration-tool/internal/migration"
+	"github.com/drewjocham/mongork/internal/migration"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 )

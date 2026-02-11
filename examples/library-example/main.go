@@ -13,8 +13,8 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
-	"github.com/drewjocham/mongo-migration-tool/internal/config"
-	"github.com/drewjocham/mongo-migration-tool/internal/migration"
+	"github.com/drewjocham/mongork/internal/config"
+	"github.com/drewjocham/mongork/internal/migration"
 )
 
 const connectionTimeout = 10 * time.Second
@@ -31,7 +31,7 @@ func (m *ExampleMigration) Up(ctx context.Context, db *mongo.Database) error {
 	collection := db.Collection("sample_collection")
 
 	_, err := collection.InsertOne(ctx, bson.M{
-		"message":    "Hello from mongo-migration!",
+		"message":    "Hello from mongork!",
 		"created_at": time.Now(),
 	})
 	if err != nil {
@@ -63,7 +63,7 @@ func (m *ExampleMigration) Down(ctx context.Context, db *mongo.Database) error {
 }
 
 func main() {
-	fmt.Println("mongo-migration Library Example")
+	fmt.Println("mongork Library Example")
 	fmt.Println("=====================================")
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

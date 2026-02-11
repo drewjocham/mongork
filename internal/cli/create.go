@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/drewjocham/mongo-migration-tool/internal/migration"
+	"github.com/drewjocham/mongork/internal/migration"
 	"github.com/spf13/cobra"
 )
 

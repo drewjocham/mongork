@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/drewjocham/mongo-migration-tool/internal/jsonutil"
+	"github.com/drewjocham/mongork/internal/jsonutil"
 )
 
 type Cleaner func(map[string]any) map[string]any

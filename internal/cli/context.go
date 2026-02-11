@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/drewjocham/mongo-migration-tool/internal/config"
-	"github.com/drewjocham/mongo-migration-tool/internal/migration"
+	"github.com/drewjocham/mongork/internal/config"
+	"github.com/drewjocham/mongork/internal/migration"
 )
 
 type ctxKey string

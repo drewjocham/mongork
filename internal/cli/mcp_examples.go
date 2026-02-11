@@ -3,8 +3,8 @@
 package cli
 
 import (
-	"github.com/drewjocham/mongo-migration-tool/examples/examplemigrations"
-	"github.com/drewjocham/mongo-migration-tool/internal/migration"
+	"github.com/drewjocham/mongork/examples/examplemigrations"
+	"github.com/drewjocham/mongork/internal/migration"
 )
 
 func registerExampleMigrations() error {

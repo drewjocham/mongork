@@ -11,7 +11,7 @@ flags:
 
 dir: ./cmd
 main: .
-binary: mongo-migration-{{ .Os }}-{{ .Arch }}
+binary: mongork-{{ .Os }}-{{ .Arch }}
 
 goos: linux
 goarch: amd64

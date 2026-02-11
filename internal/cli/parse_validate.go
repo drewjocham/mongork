@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/drewjocham/mongo-migration-tool/internal/jsonutil"
-	"github.com/drewjocham/mongo-migration-tool/internal/parser"
+	"github.com/drewjocham/mongork/internal/jsonutil"
+	"github.com/drewjocham/mongork/internal/parser"
 	"github.com/spf13/cobra"
 )
 

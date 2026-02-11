@@ -6,8 +6,8 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/drewjocham/mongo-migration-tool/internal/jsonutil"
-	"github.com/drewjocham/mongo-migration-tool/internal/schema"
+	"github.com/drewjocham/mongork/internal/jsonutil"
+	"github.com/drewjocham/mongork/internal/schema"
 	"github.com/spf13/cobra"
 )
 

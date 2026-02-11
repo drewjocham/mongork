@@ -1,6 +1,6 @@
-# Contributing to mongo-migration
+# Contributing to mongork
 
-Thank you for considering contributing to mongo-migration! This document provides guidelines and information for contributors.
+Thank you for considering contributing to mongork! This document provides guidelines and information for contributors.
 
 ## Table of Contents
 
@@ -23,12 +23,12 @@ This project adheres to the [Contributor Covenant Code of Conduct](https://www.c
 ### Reporting Bugs
 
 Before reporting a bug:
-1. Check the [existing issues](https://github.com/drewjocham/mongo-migration-tool/issues) to avoid duplicates
-2. Use the latest version of mongo-migration
+1. Check the [existing issues](https://github.com/drewjocham/mongork/issues) to avoid duplicates
+2. Use the latest version of mongork
 3. Include detailed information about your environment
 
 When reporting bugs, include:
-- **Version**: mongo-migration version and Go version
+- **Version**: mongork version and Go version
 - **Environment**: OS, MongoDB version, deployment details
 - **Steps to Reproduce**: Clear, minimal reproduction steps
 - **Expected vs Actual**: What should happen vs what actually happens
@@ -66,11 +66,11 @@ We welcome pull requests for:
 
 ```bash
 # Fork the repository on GitHub, then clone your fork
-git clone https://github.com/drewjocham/mongo-migration-tool.git
-cd mongo-migration-tool
+git clone https://github.com/drewjocham/mongork.git
+cd mongork
 
 # Add the upstream remote
-git remote add upstream https://github.com/drewjocham/mongo-migration-tool.git
+git remote add upstream https://github.com/drewjocham/mongork.git
 ```
 
 ### Build the Project
@@ -79,7 +79,7 @@ git remote add upstream https://github.com/drewjocham/mongo-migration-tool.git
 make build
 
 # Run the binary
-./mongo-migration version
+./mongork version
 ```
 
 ### Running Tests
@@ -101,8 +101,8 @@ make test-integration
 
 ```bash
 # Install MongoDB locally
-brew tap mongo-migration
-brew install mongo-migration
+brew tap mongork
+brew install mongork
 
 # Start MongoDB
 brew services start mongodb-community
@@ -159,11 +159,11 @@ GOOGLE_DOCS_ENABLED=false
 ## Project Structure
 
 ```
-mongo-migration/
+mongork/
 ├── .github/                    # GitHub Actions workflows
 │   └── workflows/             
 ├── cmd/                        # CLI commands and main entry
-│   └── mongo-migration/       
+│   └── mongork/       
 ├── internal/                   # Internal packages
 │   ├── config/                # Configuration management
 │   ├── migration/             # Migration engine
@@ -225,10 +225,10 @@ make lint
 
 # Build and test manually
 make build
-./mongo-migration --help
+./mongork --help
 
 # Test with real MongoDB (if applicable)
-./mongo-migration status
+./mongork status
 ```
 
 ### 4. Commit Changes
@@ -390,7 +390,7 @@ We use [Semantic Versioning](https://semver.org/):
 ```
 
 2. **Update Version Files**:
-   - Update version in `cmd/mongo-migration/version.go`
+   - Update version in `cmd/mongork/version.go`
    - Update CHANGELOG.md
    - Update documentation if needed
 
@@ -420,8 +420,8 @@ We use [Semantic Versioning](https://semver.org/):
 
 If the Homebrew formula does not update automatically, you can update it by hand:
 
-1. Open the tap repo: `https://github.com/drewjocham/homebrew-mongo-migration-tool`
-2. Update the formula file (typically `Formula/mongo-migration-tool.rb`) with:
+1. Open the tap repo: `https://github.com/drewjocham/homebrew-mongork`
+2. Update the formula file (typically `Formula/mongork.rb`) with:
    - The new version
    - The release asset URLs
    - The SHA256 for each asset (download the assets and run `shasum -a 256 <file>`)
@@ -431,7 +431,7 @@ Users can then run:
 
 ```bash
 brew update
-brew upgrade mongo-migration-tool
+brew upgrade mongork
 ```
 
 ### Changelog Format
@@ -470,4 +470,4 @@ Contributors are recognized in:
 - GitHub contributors page
 - Special thanks in release notes for significant contributions
 
-Thank you for contributing to mongo-migration!
+Thank you for contributing to mongork!

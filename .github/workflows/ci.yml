@@ -108,7 +108,7 @@ jobs:
           context: .
           file: docker/Dockerfile
           push: false
-          tags: drewjocham-mongo-migration:test
+          tags: drewjocham-mongork:test
           build-args: |
             VERSION=${{ env.VERSION }}
             COMMIT=${{ env.COMMIT }}

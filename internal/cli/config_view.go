@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/drewjocham/mongo-migration-tool/internal/config"
-	"github.com/drewjocham/mongo-migration-tool/internal/jsonutil"
+	"github.com/drewjocham/mongork/internal/config"
+	"github.com/drewjocham/mongork/internal/jsonutil"
 )
 
 type safeConfig struct {

@@ -23,9 +23,9 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
-	"github.com/drewjocham/mongo-migration-tool/internal/cli"
-	"github.com/drewjocham/mongo-migration-tool/internal/migration"
-	_ "github.com/drewjocham/mongo-migration-tool/migrations"
+	"github.com/drewjocham/mongork/internal/cli"
+	"github.com/drewjocham/mongork/internal/migration"
+	_ "github.com/drewjocham/mongork/migrations"
 )
 
 type TestEnv struct {
@@ -209,7 +209,7 @@ func setupIntegrationEnv(t *testing.T, ctx context.Context) *TestEnv {
 		migrationsPath,
 	)
 
-	configPath := filepath.Join(t.TempDir(), "mongo-tool.yaml")
+	configPath := filepath.Join(t.TempDir(), "mongo.yaml")
 	err = os.WriteFile(configPath, []byte(configContent), 0644)
 	require.NoError(t, err)
 
@@ -234,7 +234,7 @@ func setupIntegrationEnv(t *testing.T, ctx context.Context) *TestEnv {
 func (e *TestEnv) RunCLI(t *testing.T, args ...string) string {
 	t.Helper()
 	oldArgs := os.Args
-	os.Args = append([]string{"mongo-tool", "--config", e.ConfigPath}, args...)
+	os.Args = append([]string{"mongo", "--config", e.ConfigPath}, args...)
 	defer func() { os.Args = oldArgs }()
 
 	stdout, stderr, err := captureOutput(cli.Execute)

@@ -8,10 +8,10 @@ import (
 	"os/signal"
 	"text/tabwriter"
 
-	_ "github.com/drewjocham/mongo-migration-tool/examples/examplemigrations"
+	_ "github.com/drewjocham/mongork/examples/examplemigrations"
 
-	"github.com/drewjocham/mongo-migration-tool/internal/config"
-	"github.com/drewjocham/mongo-migration-tool/internal/migration"
+	"github.com/drewjocham/mongork/internal/config"
+	"github.com/drewjocham/mongork/internal/migration"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )

@@ -8,7 +8,7 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/drewjocham/mongo-migration-tool/internal/migration"
+	"github.com/drewjocham/mongork/internal/migration"
 	"github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
 	"github.com/tidwall/gjson"
@@ -114,7 +114,6 @@ func buildReport(ctx context.Context, client *mongo.Client, dbName string) (Heal
 
 	return report, nil
 }
-
 
 func RenderHealthTable(w io.Writer, r HealthReport) {
 	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', tabwriter.StripEscape)

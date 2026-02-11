@@ -24,10 +24,10 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     GOARCH=${TARGETARCH:-amd64} \
     go build -trimpath \
       -ldflags="-s -w \
-        -X github.com/drewjocham/mongo-migration-tool/internal/cli.appVersion=${VERSION} \
-        -X github.com/drewjocham/mongo-migration-tool/internal/cli.commit=${COMMIT} \
-        -X github.com/drewjocham/mongo-migration-tool/internal/cli.date=${DATE}" \
-      -o /out/mongo-tool ./cmd
+        -X github.com/drewjocham/mongork/internal/cli.appVersion=${VERSION} \
+        -X github.com/drewjocham/mongork/internal/cli.commit=${COMMIT} \
+        -X github.com/drewjocham/mongork/internal/cli.date=${DATE}" \
+      -o /out/mongo ./cmd
 
 FROM alpine:3.23.0
 
@@ -36,9 +36,9 @@ RUN apk --no-cache add ca-certificates tzdata \
 
 WORKDIR /app
 
-COPY --from=builder /out/mongo-tool /usr/local/bin/mongo-tool
+COPY --from=builder /out/mongo /usr/local/bin/mongo
 
 USER migration
 
-ENTRYPOINT ["/usr/local/bin/mongo-tool"]
+ENTRYPOINT ["/usr/local/bin/mongo"]
 CMD ["--help"]

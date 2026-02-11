@@ -16,7 +16,7 @@ docker-run: docker-build ## Run Docker container
 	@echo "$(GREEN)Running Docker container...$(NC)"
 	$(COMPOSE_CMD) --profile build up
 
-start-tool: ## Start services with docker-compose
+start: ## Start services with docker-compose
 	@echo "$(GREEN)Running Docker container...$(NC)"
 	docker run --rm -it \
 		-e  "MONGO_URL=..." \
@@ -38,10 +38,10 @@ security-scan: ## Run security scan on Docker image
 
 db-up: ## Start local MongoDB for testing
 	@echo "$(GREEN)Starting local MongoDB...$(NC)"
-	docker run --name mongo-migration-test -p 27017:27017 -d mongo:8.0 || \
-	docker start mongo-migration-test
+	docker run --name mongork-test -p 27017:27017 -d mongo:8.0 || \
+	docker start mongork-test
 
 db-down: ## Stop local MongoDB
 	@echo "$(YELLOW)Stopping local MongoDB...$(NC)"
-	docker stop mongo-migration-test || true
-	docker rm mongo-migration-test || true
+	docker stop mongork-test || true
+	docker rm mongork-test || true

@@ -10,9 +10,9 @@ RUN apk --no-cache add ca-certificates tzdata && \
 
 WORKDIR /app
 
-COPY --chown=migration:migration bin/mongo-tool-linux-${TARGETARCH} /app/mongo-tool
+COPY --chown=migration:migration bin/mongo-linux-${TARGETARCH} /app/mongo
 
 USER migration
 
-ENTRYPOINT ["/app/mongo-tool"]
+ENTRYPOINT ["/app/mongo"]
 CMD ["--help"]

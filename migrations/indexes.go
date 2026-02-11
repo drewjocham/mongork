@@ -1,7 +1,7 @@
 package migrations
 
 import (
-	"github.com/drewjocham/mongo-migration-tool/internal/schema"
+	"github.com/drewjocham/mongork/internal/schema"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 

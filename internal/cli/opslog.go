@@ -8,8 +8,8 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/drewjocham/mongo-migration-tool/internal/jsonutil"
-	"github.com/drewjocham/mongo-migration-tool/internal/migration"
+	"github.com/drewjocham/mongork/internal/jsonutil"
+	"github.com/drewjocham/mongork/internal/migration"
 	"github.com/spf13/cobra"
 )
 

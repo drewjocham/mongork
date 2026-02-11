@@ -38,5 +38,5 @@ version: ## Show version information
 
 download-mockery:
 	@echo "Ensuring Mockery $(MOCKERY_VERSION) is installed..."
-	@GOFLAGS=-toolchain=local go install github.com/vektra/mockery/v2@"$(MOCKERY_VERSION)"
+	@GOFLAGS=chain=local go install github.com/vektra/mockery/v2@"$(MOCKERY_VERSION)"
 	@echo "Mockery installation complete."

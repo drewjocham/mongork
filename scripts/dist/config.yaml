@@ -1,18 +1,18 @@
 version: 2
 
-project_name: mongo-migration-tool
+project_name: mongork
 
 release:
   github:
     owner: drewjocham
-    name: mongo-migration-tool
+    name: mongork
   name_template: '{{ .Tag }}'
 
 builds:
-  - id: mongo-tool
+  - id: mongo
     dir: .
     main: .
-    binary: mongo-tool
+    binary: mongo
     env:
       - CGO_ENABLED=0
     goos:

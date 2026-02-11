@@ -1,1 +1,1 @@
-make start-tool
+make start

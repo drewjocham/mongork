@@ -56,5 +56,5 @@ jobs:
         run: |
           # sometimes GitHub API needs time to catch up with the new tag
           sleep 20
-          MODULE_PATH="github.com/drewjocham/mongo-migration-tool"
+          MODULE_PATH="github.com/drewjocham/mongork"
           curl -sS "https://proxy.golang.org/${MODULE_PATH}/@v/${{ github.ref_name }}.info"

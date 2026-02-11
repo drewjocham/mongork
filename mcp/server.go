@@ -11,8 +11,8 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/drewjocham/mongo-migration-tool/internal/config"
-	"github.com/drewjocham/mongo-migration-tool/internal/migration"
+	"github.com/drewjocham/mongork/internal/config"
+	"github.com/drewjocham/mongork/internal/migration"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -35,7 +35,7 @@ func NewMCPServer(cfg *config.Config, logger *slog.Logger) (*MCPServer, error) {
 	}
 
 	s := mcp.NewServer(&mcp.Implementation{
-		Name:    "mongo-migration",
+		Name:    "mongork",
 		Version: "1.0.0",
 	}, nil)
 

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/drewjocham/mongo-migration-tool/internal/jsonutil"
+	"github.com/drewjocham/mongork/internal/jsonutil"
 	"github.com/go-playground/validator/v10"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
