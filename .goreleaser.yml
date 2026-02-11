@@ -96,12 +96,12 @@ brews:
       - name: mongodb/brew/mongodb-community
         type: optional
     install: |
-      bin.install "mongo"
+      bin.install "mongork" => "mt"
       pkgshare.install ".env.example"
       pkgshare.install "examples"
       pkgshare.install "mcp.md"
     test: |
-      system "#{bin}/mongo --version"
+      system "#{bin}/mt --version"
 
 dockers:
   - image_templates:

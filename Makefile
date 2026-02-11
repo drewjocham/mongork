@@ -4,7 +4,7 @@ GOMOD=$(GOCMD) mod
 BUILD_DIR=./bin
 CMD_DIR=./cmd
 
-BINARY_NAME=mongo
+BINARY_NAME=mongork
 
 CMD_PATH=./cmd
 VERSION ?= $(shell git describe --tags --always --dirty)
