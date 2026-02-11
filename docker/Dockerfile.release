@@ -6,9 +6,9 @@ RUN apk --no-cache add ca-certificates tzdata \
 
 WORKDIR /app
 
-COPY mongo /usr/local/bin/mongo
+COPY mongork /usr/local/bin/mongork
 
 USER migration
 
-ENTRYPOINT ["/usr/local/bin/mongo"]
+ENTRYPOINT ["/usr/local/bin/mongork"]
 CMD ["--help"]
