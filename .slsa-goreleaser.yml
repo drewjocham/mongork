@@ -1,0 +1,23 @@
+# Configuration consumed by the SLSA Go builder workflow.
+version: 1
+
+env:
+  - GO111MODULE=on
+  - CGO_ENABLED=0
+
+flags:
+  - -trimpath
+  - -tags=netgo
+
+dir: ./cmd
+main: .
+binary: mongo-migration-{{ .Os }}-{{ .Arch }}
+
+goos: linux
+goarch: amd64
+
+ldflags:
+  - -s -w
+  - -X main.version={{ .Env.GO_LDFLAG_VERSION }}
+  - -X main.commit={{ .Env.GO_LDFLAG_COMMIT }}
+  - -X main.builtBy=slsa-github-generator

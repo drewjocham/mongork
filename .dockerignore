@@ -1,0 +1,23 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+
+# Build artifacts
+build/
+dist/
+*.tar.gz
+*.zip
+
+# Local config
+.env
+.env.*
+
+! .env.example
+
+# OS
+.DS_Store
+Thumbs.db

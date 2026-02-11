@@ -1,0 +1,164 @@
+.idea
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Build artifacts
+/build/
+/dist/
+*.tar.gz
+*.zip
+
+/bin/
+# Test coverage
+coverage.out
+coverage.html
+
+# Configuration files with secrets
+.env
+.env.local
+.env.test
+.env.production
+.env.staging
+
+# Google Cloud credentials
+google-credentials.json
+credentials.json
+service-account.json
+
+# API keys and secrets
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+openai-key.txt
+gemini-key.txt
+anthropic-key.txt
+claude-key.txt
+
+# Docker
+docker-compose.override.yml
+
+# Docker volumes and data
+data/
+volumes/
+mongo-data/
+mongodb-data/
+
+# MongoDB specific
+dump/
+*.bson
+mongodump/
+
+# MCP specific
+mcp-client-test.json
+mcp-config-*.json
+ollama-config.json
+claude-desktop-config.json
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.venv/
+.python-version
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Node modules (if any frontend components are added)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python (if any Python scripts are added)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# Backup files
+*.bak
+*.backup
+
+# Local database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Example configuration copies
+examples/*/.env
+examples/*/credentials.json
+
+# Build artifacts from examples
+examples/*/example
+examples/*/main
+
+# Homebrew formula development
+Formula/
+
+# Release artifacts
+checksums.txt
+*.asc
+*.sig
+
+# Profiling files
+cpu.prof
+mem.prof
+goroutine.prof
+block.prof
+mutex.prof
+
+# Benchmarking results
+bench.out
+bench.txt
+
+# Development databases
+local.db
+dev.db
+test.db
+
+
+# Go workspace
+go.work.sum
+/.idea/
+
+# Untracked files
+.golangci.bck.yml
+cmd/pkg/
+examples/example
+examples/library-example/library-example
+mongo_keyfile
+notes.md
+vendor/
