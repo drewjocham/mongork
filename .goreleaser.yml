@@ -110,7 +110,7 @@ dockers:
     dockerfile: docker/Dockerfile.release
     use: buildx
     ids:
-      - mongo
+      - mongork
     build_flag_templates:
       - "--platform=linux/amd64"
       - "--label=org.opencontainers.image.created={{.Date}}"
@@ -124,7 +124,7 @@ dockers:
     dockerfile: docker/Dockerfile.release
     use: buildx
     ids:
-      - mongo
+      - mongork
     build_flag_templates:
       - "--platform=linux/arm64"
       - "--label=org.opencontainers.image.created={{.Date}}"
