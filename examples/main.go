@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -14,6 +15,10 @@ import (
 	"github.com/drewjocham/mongork/internal/migration"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
+)
+
+var (
+	ErrUnknownCommand = errors.New("unknown command")
 )
 
 func main() {
@@ -54,7 +59,7 @@ func main() {
 	case "status":
 		err = printStatus(ctx, engine)
 	default:
-		err = fmt.Errorf("unknown command: %s", cmd)
+		err = fmt.Errorf("%w: %s", ErrUnknownCommand, cmd)
 	}
 
 	if err != nil {

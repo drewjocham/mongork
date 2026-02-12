@@ -4,6 +4,7 @@ package examplemigrations
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -11,6 +12,13 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+)
+
+var (
+	ErrFailedToFindUsers     = errors.New("failed to find users")
+	ErrFailedToDecodeUser    = errors.New("failed to decode user")
+	ErrFailedToTransformUser = errors.New("failed to transform user")
+	ErrFailedToUpdateUser    = errors.New("failed to update user")
 )
 
 // TransformUserDataMigration demonstrates data transformation operations
@@ -35,7 +43,7 @@ func (m *TransformUserDataMigration) Up(
 	// Find all users and transform their data
 	cursor, err := collection.Find(ctx, bson.D{})
 	if err != nil {
-		return fmt.Errorf("failed to find users: %w", err)
+		return fmt.Errorf("%w: %w", ErrFailedToFindUsers, err)
 	}
 	defer func() {
 		if closeErr := cursor.Close(ctx); closeErr != nil {
@@ -46,11 +54,11 @@ func (m *TransformUserDataMigration) Up(
 	for cursor.Next(ctx) {
 		var user bson.M
 		if err := cursor.Decode(&user); err != nil {
-			return fmt.Errorf("failed to decode user: %w", err)
+			return fmt.Errorf("%w: %w", ErrFailedToDecodeUser, err)
 		}
 
 		if err := m.transformSingleUser(ctx, collection, user); err != nil {
-			return fmt.Errorf("failed to transform user %v: %w", user["_id"], err)
+			return fmt.Errorf("%w %v: %w", ErrFailedToTransformUser, user["_id"], err)
 		}
 	}
 
@@ -87,7 +95,7 @@ func (m *TransformUserDataMigration) transformSingleUser(
 		filter := bson.M{"_id": user["_id"]}
 		_, err := collection.UpdateOne(ctx, filter, update)
 		if err != nil {
-			return fmt.Errorf("failed to update user: %w", err)
+			return fmt.Errorf("%w: %w", ErrFailedToUpdateUser, err)
 		}
 	}
 	return nil

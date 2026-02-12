@@ -1,11 +1,16 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
+)
+
+var (
+	ErrFailedToForce = errors.New("failed to force")
 )
 
 func newForceCmd() *cobra.Command {
@@ -29,7 +34,7 @@ func newForceCmd() *cobra.Command {
 			}
 
 			if err := engine.Force(cmd.Context(), version); err != nil {
-				return fmt.Errorf("%s: %w", ErrFailedToForce, err)
+				return fmt.Errorf("%w: %w", ErrFailedToForce, err)
 			}
 
 			zap.S().Infow("Migration force marked successfully", "version", version)

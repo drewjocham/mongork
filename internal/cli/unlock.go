@@ -1,9 +1,14 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
+)
+
+var (
+	ErrFailedToReleaseLock = errors.New("failed to release migration lock")
 )
 
 func newUnlockCmd() *cobra.Command {
@@ -26,7 +31,7 @@ func newUnlockCmd() *cobra.Command {
 			}
 
 			if err := engine.ForceUnlock(cmd.Context()); err != nil {
-				return fmt.Errorf("failed to release migration lock: %w", err)
+				return fmt.Errorf("%w: %w", ErrFailedToReleaseLock, err)
 			}
 
 			fmt.Fprintln(cmd.OutOrStdout(), "✅ Migration lock released.")

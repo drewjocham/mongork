@@ -23,6 +23,16 @@ const (
 	logExecutingMigration = "Executing migration"
 )
 
+var (
+	ErrFailedToReadMigrations = errors.New("failed to read migrations")
+	ErrMigrationNotFound      = errors.New("migration not found")
+	ErrFailedToSetVersion     = errors.New("failed to set version")
+	ErrFailedToRunMigration   = errors.New("failed to run migration")
+	ErrChecksumMismatch       = errors.New("checksum mismatch")
+	ErrFailedToLock           = errors.New("failed to acquire migration lock")
+	ErrFailedToForceUnlock    = errors.New("failed to force unlock")
+)
+
 type Migration interface {
 	Version() string
 	Description() string
@@ -104,12 +114,12 @@ func (e *Engine) ListApplied(ctx context.Context) ([]MigrationRecord, error) {
 func (e *Engine) Force(ctx context.Context, version string) error {
 	m, ok := e.migrations[version]
 	if !ok {
-		return fmt.Errorf("%s: %s", ErrMigrationNotFound, version)
+		return fmt.Errorf("%w: %s", ErrMigrationNotFound, version)
 	}
 
 	applied, err := e.getAppliedMap(ctx)
 	if err != nil {
-		return fmt.Errorf("%s: %w", ErrFailedToReadMigrations, err)
+		return fmt.Errorf("%w: %w", ErrFailedToReadMigrations, err)
 	}
 
 	if _, exists := applied[version]; exists {
@@ -118,7 +128,7 @@ func (e *Engine) Force(ctx context.Context, version string) error {
 
 	coll := e.db.Collection(e.coll)
 	if _, err := coll.InsertOne(ctx, e.newRecord(m)); err != nil {
-		return fmt.Errorf("%s: %w", ErrFailedToSetVersion, err)
+		return fmt.Errorf("%w: %w", ErrFailedToSetVersion, err)
 	}
 	return nil
 }
@@ -185,7 +195,7 @@ func (e *Engine) ForceUnlock(ctx context.Context) error {
 	coll := e.db.Collection(collLock)
 	_, err := coll.DeleteMany(ctx, bson.M{"lock_id": defaultLockID})
 	if err != nil {
-		return fmt.Errorf("failed to force unlock: %w", err)
+		return fmt.Errorf("%w: %w", ErrFailedToForceUnlock, err)
 	}
 	return nil
 }
@@ -263,7 +273,7 @@ func (e *Engine) getAppliedMap(ctx context.Context) (map[string]MigrationRecord,
 
 func (e *Engine) validateChecksum(m Migration, record MigrationRecord) error {
 	if current := e.calculateChecksum(m); record.Checksum != current {
-		return fmt.Errorf("checksum mismatch for %s: expected %s, got %s", m.Version(), record.Checksum, current)
+		return fmt.Errorf("%w for %s: expected %s, got %s", ErrChecksumMismatch, m.Version(), record.Checksum, current)
 	}
 	return nil
 }

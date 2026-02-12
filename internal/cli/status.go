@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -9,6 +10,11 @@ import (
 	"github.com/drewjocham/mongork/internal/jsonutil"
 	"github.com/drewjocham/mongork/internal/migration"
 	"github.com/spf13/cobra"
+)
+
+var (
+	ErrFailedToGetStatus = errors.New("failed to get status")
+	ErrUnsupportedOutput = errors.New("unsupported output format")
 )
 
 func newStatusCmd() *cobra.Command {
@@ -25,7 +31,7 @@ func newStatusCmd() *cobra.Command {
 
 			status, err := engine.GetStatus(cmd.Context())
 			if err != nil {
-				return fmt.Errorf("%s: %w", ErrFailedToGetStatus, err)
+				return fmt.Errorf("%w: %w", ErrFailedToGetStatus, err)
 			}
 
 			out := cmd.OutOrStdout()
@@ -37,7 +43,7 @@ func newStatusCmd() *cobra.Command {
 				renderTable(out, status)
 				return nil
 			default:
-				return fmt.Errorf("unsupported output format: %s", format)
+				return fmt.Errorf("%w: %s", ErrUnsupportedOutput, format)
 			}
 		},
 	}

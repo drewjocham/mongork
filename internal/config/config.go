@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -8,6 +9,12 @@ import (
 
 	"github.com/caarlos0/env/v11"
 	"github.com/joho/godotenv"
+)
+
+var (
+	ErrEnvParse           = errors.New("env parse error")
+	ErrDatabaseRequired   = errors.New("MONGO_DATABASE is required")
+	ErrGoogleCredsMissing = errors.New("google Docs enabled but credentials missing")
 )
 
 type Config struct {
@@ -38,7 +45,7 @@ func Load(envFiles ...string) (*Config, error) {
 
 	cfg := &Config{}
 	if err := env.Parse(cfg); err != nil {
-		return nil, fmt.Errorf("env parse error: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrEnvParse, err)
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -78,11 +85,11 @@ func (c *Config) GetConnectionString() string {
 
 func (c *Config) Validate() error {
 	if c.Database == "" {
-		return fmt.Errorf("MONGO_DATABASE is required")
+		return ErrDatabaseRequired
 	}
 	if c.GoogleDocsEnabled {
 		if c.GoogleCredentialsPath == "" && c.GoogleCredentialsJSON == "" {
-			return fmt.Errorf("google Docs enabled but credentials missing")
+			return ErrGoogleCredsMissing
 		}
 	}
 	return nil

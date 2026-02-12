@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -9,6 +10,10 @@ import (
 	"github.com/drewjocham/mongork/internal/jsonutil"
 	"github.com/drewjocham/mongork/internal/schema"
 	"github.com/spf13/cobra"
+)
+
+var (
+	ErrUnsupportedOutputFormat = errors.New("unsupported output format")
 )
 
 func newSchemaCmd() *cobra.Command {
@@ -37,7 +42,7 @@ func newSchemaIndexesCmd() *cobra.Command {
 				renderIndexesTable(cmd.OutOrStdout())
 				return nil
 			default:
-				return fmt.Errorf("unsupported output format: %s", output)
+				return fmt.Errorf("%w: %s", ErrUnsupportedOutputFormat, output)
 			}
 		},
 	}

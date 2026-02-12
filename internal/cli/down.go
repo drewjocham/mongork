@@ -1,11 +1,16 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/drewjocham/mongork/internal/migration"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
+)
+
+var (
+	ErrFailedToDown = errors.New("failed to down")
 )
 
 func newDownCmd() *cobra.Command {
@@ -52,7 +57,7 @@ func newDownCmd() *cobra.Command {
 
 			zap.S().Infow("Starting migration rollback", "target", target)
 			if err := engine.Down(cmd.Context(), target); err != nil {
-				return fmt.Errorf("%s: %w", ErrFailedToDown, err)
+				return fmt.Errorf("%w: %w", ErrFailedToDown, err)
 			}
 
 			zap.S().Info("Rollback completed successfully")

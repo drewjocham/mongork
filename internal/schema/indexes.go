@@ -1,12 +1,20 @@
 package schema
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
 	"sync"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
+)
+
+var (
+	ErrIndexCollectionRequired = errors.New("index collection is required")
+	ErrIndexNameRequired       = errors.New("index name is required")
+	ErrIndexMustDefineKey      = errors.New("index must define at least one key")
+	ErrIndexAlreadyRegistered  = errors.New("index already registered")
 )
 
 type IndexSpec struct {
@@ -27,13 +35,13 @@ var (
 
 func Register(spec IndexSpec) error {
 	if spec.Collection == "" {
-		return fmt.Errorf("index collection is required")
+		return ErrIndexCollectionRequired
 	}
 	if spec.Name == "" {
-		return fmt.Errorf("index name is required")
+		return ErrIndexNameRequired
 	}
 	if len(spec.Keys) == 0 {
-		return fmt.Errorf("index %s.%s must define at least one key", spec.Collection, spec.Name)
+		return fmt.Errorf("%w: %s.%s", ErrIndexMustDefineKey, spec.Collection, spec.Name)
 	}
 
 	key := makeRegistryKey(spec.Collection, spec.Name)
@@ -42,7 +50,7 @@ func Register(spec IndexSpec) error {
 	defer registryMu.Unlock()
 
 	if _, exists := registry[key]; exists {
-		return fmt.Errorf("index %s already registered", key)
+		return fmt.Errorf("%w: %s", ErrIndexAlreadyRegistered, key)
 	}
 
 	registry[key] = spec

@@ -2,11 +2,17 @@ package migrations
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
+)
+
+var (
+	ErrCreateIndexesFailed = errors.New("create indexes failed")
+	ErrDropIndexFailed     = errors.New("drop index failed")
 )
 
 // Migration_20251231_192427_add_user_indexes add_user_indexes
@@ -46,7 +52,7 @@ func (m *Migration_20251231_192427_add_user_indexes) Up(ctx context.Context, db 
 	}
 
 	if _, err := collection.Indexes().CreateMany(ctx, indexes); err != nil {
-		return fmt.Errorf("create indexes failed: %w", err)
+		return fmt.Errorf("%w: %w", ErrCreateIndexesFailed, err)
 	}
 
 	fmt.Printf("Migration %s: %s - UP\\n", m.Version(), m.Description())
@@ -59,7 +65,7 @@ func (m *Migration_20251231_192427_add_user_indexes) Down(ctx context.Context, d
 
 	for _, idx := range []string{"idx_users_email_unique", "idx_users_status_created_at"} {
 		if err := collection.Indexes().DropOne(ctx, idx); err != nil {
-			return fmt.Errorf("drop index %s failed: %w", idx, err)
+			return fmt.Errorf("%w: %s: %w", ErrDropIndexFailed, idx, err)
 		}
 	}
 

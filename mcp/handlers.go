@@ -3,6 +3,7 @@ package mcp
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,6 +14,20 @@ import (
 	"github.com/drewjocham/mongork/internal/parser"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.mongodb.org/mongo-driver/v2/bson"
+)
+
+var (
+	ErrMigrationUpFailed    = errors.New("migration up failed")
+	ErrMigrationDownFailed  = errors.New("migration down failed")
+	ErrTypeOrTypeField      = errors.New("type or typeField is required")
+	ErrNoRegisteredType     = errors.New("no registered type")
+	ErrFailedToCreateDir    = errors.New("failed to create directory")
+	ErrFailedToExecuteTmpl  = errors.New("failed to execute template")
+	ErrFailedToWriteFile    = errors.New("failed to write file")
+	ErrFailedToListColl     = errors.New("failed to list collections")
+	ErrFailedToGetStatus    = errors.New("failed to get status")
+	ErrFailedToParsePayload = errors.New("failed to parse payload")
+	ErrFailedToValidate     = errors.New("failed to validate")
 )
 
 func (s *MCPServer) registerTools() {
@@ -68,7 +83,7 @@ func (s *MCPServer) handleStatus(
 	}
 	status, err := s.engine.GetStatus(ctx)
 	if err != nil {
-		return nil, messageOutput{}, err
+		return nil, messageOutput{}, fmt.Errorf("%w: %w", ErrFailedToGetStatus, err)
 	}
 	res, out := newMessageResult(formatStatusTable(status))
 	return res, out, nil
@@ -81,9 +96,9 @@ func (s *MCPServer) handleUp(
 		return nil, messageOutput{}, err
 	}
 	if err := s.engine.Up(ctx, args.Version); err != nil {
-		return nil, messageOutput{}, fmt.Errorf("migration up failed: %w", err)
+		return nil, messageOutput{}, fmt.Errorf("%w: %w", ErrMigrationUpFailed, err)
 	}
-	res, out := newMessageResult("✅ Migrations applied successfully.")
+	res, out := newMessageResult("Migrations applied successfully.")
 	return res, out, nil
 }
 
@@ -94,9 +109,9 @@ func (s *MCPServer) handleDown(
 		return nil, messageOutput{}, err
 	}
 	if err := s.engine.Down(ctx, args.Version); err != nil {
-		return nil, messageOutput{}, fmt.Errorf("migration down failed: %w", err)
+		return nil, messageOutput{}, fmt.Errorf("%w: %w", ErrMigrationDownFailed, err)
 	}
-	res, out := newMessageResult("✅ Rollback completed successfully.")
+	res, out := newMessageResult("Rollback completed successfully.")
 	return res, out, nil
 }
 
@@ -108,7 +123,7 @@ func (s *MCPServer) handleSchema(
 	}
 	collections, err := s.db.ListCollectionNames(ctx, bson.D{})
 	if err != nil {
-		return nil, messageOutput{}, err
+		return nil, messageOutput{}, fmt.Errorf("%w: %w", ErrFailedToListColl, err)
 	}
 
 	var b strings.Builder
@@ -128,7 +143,7 @@ func (s *MCPServer) handleCreate(
 	path := filepath.Join("migrations", fmt.Sprintf("%s_%s.go", version, slug))
 
 	if err := os.MkdirAll("migrations", 0750); err != nil {
-		return nil, messageOutput{}, err
+		return nil, messageOutput{}, fmt.Errorf("%w: %w", ErrFailedToCreateDir, err)
 	}
 
 	var buf bytes.Buffer
@@ -139,14 +154,14 @@ func (s *MCPServer) handleCreate(
 	}
 
 	if err := migrationTemplate.Execute(&buf, data); err != nil {
-		return nil, messageOutput{}, err
+		return nil, messageOutput{}, fmt.Errorf("%w: %w", ErrFailedToExecuteTmpl, err)
 	}
 
 	if err := os.WriteFile(path, buf.Bytes(), 0600); err != nil {
-		return nil, messageOutput{}, err
+		return nil, messageOutput{}, fmt.Errorf("%w: %w", ErrFailedToWriteFile, err)
 	}
 
-	res, out := newMessageResult(fmt.Sprintf("🚀 Created migration: `%s`", path))
+	res, out := newMessageResult(fmt.Sprintf("Created migration: `%s`", path))
 	return res, out, nil
 }
 
@@ -185,17 +200,17 @@ func (s *MCPServer) handleParsePayload(
 
 	raw, err := parser.DecodePayload(args.Payload, parser.Format(format))
 	if err != nil {
-		return nil, messageOutput{}, err
+		return nil, messageOutput{}, fmt.Errorf("%w: %w", ErrFailedToParsePayload, err)
 	}
 
 	parsed, err := parser.ParseMap(raw, parser.WithFormat(parser.Format(format)))
 	if err != nil {
-		return nil, messageOutput{}, err
+		return nil, messageOutput{}, fmt.Errorf("%w: %w", ErrFailedToParsePayload, err)
 	}
 
 	outBytes, err := jsonutil.MarshalIndent(parsed, "", "  ")
 	if err != nil {
-		return nil, messageOutput{}, err
+		return nil, messageOutput{}, fmt.Errorf("%w: %w", ErrFailedToParsePayload, err)
 	}
 
 	res, out := newMessageResult(string(outBytes))
@@ -212,34 +227,35 @@ func (s *MCPServer) handleValidatePayload(
 
 	raw, err := parser.DecodePayload(args.Payload, parser.Format(format))
 	if err != nil {
-		return nil, messageOutput{}, err
+		return nil, messageOutput{}, fmt.Errorf("%w: %w", ErrFailedToParsePayload, err)
 	}
 
 	if args.TypeName == "" && args.TypeField == "" {
-		return nil, messageOutput{}, fmt.Errorf("type or typeField is required")
+		return nil, messageOutput{}, ErrTypeOrTypeField
 	}
 
 	if args.TypeName != "" {
 		ctor := parser.DefaultRegistry[strings.ToLower(args.TypeName)]
 		if ctor == nil {
-			return nil, messageOutput{}, fmt.Errorf("no registered type: %s", args.TypeName)
+			return nil, messageOutput{}, fmt.Errorf("%w: %s", ErrNoRegisteredType, args.TypeName)
 		}
 		instance := ctor()
 		if err := parser.ParseInto(raw, instance,
 			parser.WithFormat(parser.Format(format)),
 			parser.WithValidation(true),
 		); err != nil {
-			return nil, messageOutput{}, err
+			return nil, messageOutput{}, fmt.Errorf("%w: %w", ErrFailedToValidate, err)
 		}
 		res, out := newMessageResult("valid")
 		return res, out, nil
 	}
 
-	if _, err := parser.ParseByType(raw, args.TypeField, parser.DefaultRegistry,
+	if _, err := parser.ParseByType(raw,
+		args.TypeField, parser.DefaultRegistry,
 		parser.WithFormat(parser.Format(format)),
 		parser.WithValidation(true),
 	); err != nil {
-		return nil, messageOutput{}, err
+		return nil, messageOutput{}, fmt.Errorf("%w: %w", ErrFailedToValidate, err)
 	}
 	res, out := newMessageResult("valid")
 	return res, out, nil

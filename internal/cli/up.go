@@ -1,11 +1,16 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/drewjocham/mongork/internal/migration"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
+)
+
+var (
+	ErrFailedToRun = errors.New("failed to run")
 )
 
 func newUpCmd() *cobra.Command {
@@ -39,7 +44,7 @@ func newUpCmd() *cobra.Command {
 			logIntent(target)
 
 			if err := engine.Up(cmd.Context(), target); err != nil {
-				return fmt.Errorf("%s: %w", ErrFailedToRun, err)
+				return fmt.Errorf("%w: %w", ErrFailedToRun, err)
 			}
 
 			fmt.Fprintln(cmd.OutOrStdout(), "✨ Database is up to date!")

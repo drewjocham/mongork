@@ -12,6 +12,12 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
+var (
+	ErrCreateIndexesFailed = errors.New("create indexes failed")
+	ErrDropIndexFailed     = errors.New("drop index failed")
+	ErrIndexMustDefineKey  = errors.New("index must define at least one key")
+)
+
 type IndexKey struct {
 	Field string
 	Order interface{}
@@ -146,7 +152,7 @@ func CreateIndexesWithOptions(
 
 	_, err := coll.Indexes().CreateMany(ctx, models)
 	if err != nil {
-		return fmt.Errorf("create indexes failed: %w", err)
+		return fmt.Errorf("%w: %w", ErrCreateIndexesFailed, err)
 	}
 	return nil
 }
@@ -160,7 +166,7 @@ func DropIndexes(ctx context.Context, coll *mongo.Collection, names ...string) e
 			if isIndexNotFound(err) {
 				continue
 			}
-			return fmt.Errorf("drop index %s failed: %w", name, err)
+			return fmt.Errorf("%w: %s: %w", ErrDropIndexFailed, name, err)
 		}
 	}
 	return nil
@@ -169,7 +175,7 @@ func DropIndexes(ctx context.Context, coll *mongo.Collection, names ...string) e
 func ensureIndexName(model *mongo.IndexModel, cfg *indexCreateConfig) error {
 	keys, ok := model.Keys.(bson.D)
 	if !ok || len(keys) == 0 {
-		return fmt.Errorf("index must define at least one key")
+		return ErrIndexMustDefineKey
 	}
 
 	opts := ensureIndexOptionsBuilder(model)

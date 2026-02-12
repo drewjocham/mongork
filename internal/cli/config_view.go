@@ -1,11 +1,16 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"io"
 
 	"github.com/drewjocham/mongork/internal/config"
 	"github.com/drewjocham/mongork/internal/jsonutil"
+)
+
+var (
+	ErrRenderConfig = errors.New("render config")
 )
 
 type safeConfig struct {
@@ -45,7 +50,7 @@ func renderConfig(out io.Writer, cfg *config.Config) error {
 		GoogleCredentials:    maskSecret(firstNonEmpty(cfg.GoogleCredentialsPath, cfg.GoogleCredentialsJSON)),
 	}
 	if err := enc.Encode(safe); err != nil {
-		return fmt.Errorf("render config: %w", err)
+		return fmt.Errorf("%w: %w", ErrRenderConfig, err)
 	}
 	return nil
 }

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -11,6 +12,13 @@ import (
 	"github.com/drewjocham/mongork/internal/jsonutil"
 	"github.com/drewjocham/mongork/internal/migration"
 	"github.com/spf13/cobra"
+)
+
+var (
+	ErrFailedToReadOpsLog    = errors.New("failed to read opslog")
+	ErrInvalidRegex          = errors.New("invalid regex")
+	ErrInvalidTime           = errors.New("invalid time")
+	ErrFailedToGetMigrations = errors.New("failed to get migrations")
 )
 
 func newOpslogCmd() *cobra.Command {
@@ -36,7 +44,7 @@ func newOpslogCmd() *cobra.Command {
 
 			records, err := engine.ListApplied(cmd.Context())
 			if err != nil {
-				return fmt.Errorf("failed to read opslog: %w", err)
+				return fmt.Errorf("%w: %w", ErrFailedToReadOpsLog, err)
 			}
 
 			options, err := buildOpslogFilter(search, version, regex, from, to)
@@ -56,7 +64,7 @@ func newOpslogCmd() *cobra.Command {
 				renderOpslogTable(out, records)
 				return nil
 			default:
-				return fmt.Errorf("unsupported output format: %s", output)
+				return fmt.Errorf("%w: %s", ErrUnsupportedOutput, output)
 			}
 		},
 	}
@@ -87,7 +95,7 @@ func buildOpslogFilter(search, version, regex, from, to string) (opslogFilter, e
 	if regex != "" {
 		compiled, err := regexp.Compile(regex)
 		if err != nil {
-			return opslogFilter{}, fmt.Errorf("invalid regex: %w", err)
+			return opslogFilter{}, fmt.Errorf("%w: %w", ErrInvalidRegex, err)
 		}
 		filter.regex = compiled
 	}
@@ -142,7 +150,7 @@ func parseOpslogTime(value string) (time.Time, error) {
 	if ts, err := time.Parse("2006-01-02", value); err == nil {
 		return ts, nil
 	}
-	return time.Time{}, fmt.Errorf("invalid time: %s (use RFC3339 or YYYY-MM-DD)", value)
+	return time.Time{}, fmt.Errorf("%w: %s (use RFC3339 or YYYY-MM-DD)", ErrInvalidTime, value)
 }
 
 func renderOpslogJSON(w io.Writer, records []migration.MigrationRecord) error {

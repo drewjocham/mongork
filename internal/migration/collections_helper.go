@@ -2,11 +2,18 @@ package migration
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
+)
+
+var (
+	ErrCollectionNameRequired = errors.New("collection name is required")
+	ErrCreateCollectionFailed = errors.New("create collection failed")
+	ErrListCollectionsFailed  = errors.New("list collections failed")
 )
 
 type CollectionOption func(*options.CreateCollectionOptionsBuilder)
@@ -58,7 +65,7 @@ func WithTimeSeries(timeField string, metaField string, granularity string) Coll
 func EnsureCollection(ctx context.Context, db *mongo.Database, name string,
 	opts ...CollectionOption) (*mongo.Collection, error) {
 	if name == "" {
-		return nil, fmt.Errorf("collection name is required")
+		return nil, ErrCollectionNameRequired
 	}
 
 	exists, err := collectionExists(ctx, db, name)
@@ -74,7 +81,7 @@ func EnsureCollection(ctx context.Context, db *mongo.Database, name string,
 			}
 		}
 		if err := db.CreateCollection(ctx, name, createOpts); err != nil {
-			return nil, fmt.Errorf("create collection %s failed: %w", name, err)
+			return nil, fmt.Errorf("%w: %s: %w", ErrCreateCollectionFailed, name, err)
 		}
 	}
 
@@ -84,7 +91,7 @@ func EnsureCollection(ctx context.Context, db *mongo.Database, name string,
 func collectionExists(ctx context.Context, db *mongo.Database, name string) (bool, error) {
 	names, err := db.ListCollectionNames(ctx, bson.M{"name": name})
 	if err != nil {
-		return false, fmt.Errorf("list collections failed: %w", err)
+		return false, fmt.Errorf("%w: %w", ErrListCollectionsFailed, err)
 	}
 	return len(names) > 0, nil
 }

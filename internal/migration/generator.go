@@ -3,12 +3,19 @@ package migration
 import (
 	"bytes"
 	_ "embed"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"text/template"
 	"time"
+)
+
+var (
+	ErrFailedToCreateFile      = errors.New("failed to create file")
+	ErrFailedToParseTemplate   = errors.New("failed to parse template")
+	ErrFailedToExecuteTemplate = errors.New("failed to execute template")
 )
 
 //go:embed template.tmpl
@@ -26,7 +33,7 @@ func (g *Generator) Create(name string) (string, string, error) {
 	targetPath := filepath.Join(g.OutputPath, version+".go")
 
 	if err := os.MkdirAll(g.OutputPath, 0750); err != nil {
-		return "", "", fmt.Errorf("%s: %w", ErrFailedToCreateFile, err)
+		return "", "", fmt.Errorf("%w: %w", ErrFailedToCreateFile, err)
 	}
 
 	data := struct {
@@ -43,12 +50,12 @@ func (g *Generator) Create(name string) (string, string, error) {
 
 	tmpl, err := template.New("migration").Parse(migrationTemplate)
 	if err != nil {
-		return "", "", fmt.Errorf("%s: %w", ErrFailedToParseTemplate, err)
+		return "", "", fmt.Errorf("%w: %w", ErrFailedToParseTemplate, err)
 	}
 
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, data); err != nil {
-		return "", "", fmt.Errorf("%s: %w", ErrFailedToExecuteTemplate, err)
+		return "", "", fmt.Errorf("%w: %w", ErrFailedToExecuteTemplate, err)
 	}
 
 	return targetPath, version, os.WriteFile(targetPath, buf.Bytes(), 0600)

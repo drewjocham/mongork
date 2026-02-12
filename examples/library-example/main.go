@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -15,6 +16,15 @@ import (
 
 	"github.com/drewjocham/mongork/internal/config"
 	"github.com/drewjocham/mongork/internal/migration"
+)
+
+var (
+	ErrFailedToInsertDoc   = errors.New("failed to insert document")
+	ErrFailedToCreateIndex = errors.New("failed to create index")
+	ErrFailedToDropColl    = errors.New("failed to drop collection")
+	ErrValidationFailed    = errors.New("validation failed")
+	ErrConnectionFailed    = errors.New("connection failed")
+	ErrPingFailed          = errors.New("ping failed")
 )
 
 const connectionTimeout = 10 * time.Second
@@ -35,7 +45,7 @@ func (m *ExampleMigration) Up(ctx context.Context, db *mongo.Database) error {
 		"created_at": time.Now(),
 	})
 	if err != nil {
-		return fmt.Errorf("failed to insert document: %w", err)
+		return fmt.Errorf("%w: %w", ErrFailedToInsertDoc, err)
 	}
 
 	indexModel := mongo.IndexModel{
@@ -45,7 +55,7 @@ func (m *ExampleMigration) Up(ctx context.Context, db *mongo.Database) error {
 
 	_, err = collection.Indexes().CreateOne(ctx, indexModel)
 	if err != nil {
-		return fmt.Errorf("failed to create index: %w", err)
+		return fmt.Errorf("%w: %w", ErrFailedToCreateIndex, err)
 	}
 
 	fmt.Println("Created sample_collection with index")
@@ -55,7 +65,7 @@ func (m *ExampleMigration) Up(ctx context.Context, db *mongo.Database) error {
 func (m *ExampleMigration) Down(ctx context.Context, db *mongo.Database) error {
 	err := db.Collection("sample_collection").Drop(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to drop collection: %w", err)
+		return fmt.Errorf("%w: %w", ErrFailedToDropColl, err)
 	}
 
 	fmt.Println("Dropped sample_collection")
@@ -109,7 +119,7 @@ func loadConfig() (*config.Config, error) {
 	}
 
 	if err := cfg.Validate(); err != nil {
-		return nil, fmt.Errorf("validation failed: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrValidationFailed, err)
 	}
 	return cfg, nil
 }
@@ -121,11 +131,11 @@ func connectToMongoDB(ctx context.Context, cfg *config.Config) (*mongo.Client, *
 	fmt.Printf("Connecting to: %s/%s\n", cfg.MongoURL, cfg.Database)
 	client, err := mongo.Connect(options.Client().ApplyURI(cfg.GetConnectionString()))
 	if err != nil {
-		return nil, nil, fmt.Errorf("connection failed: %w", err)
+		return nil, nil, fmt.Errorf("%w: %w", ErrConnectionFailed, err)
 	}
 
 	if err = client.Ping(connCtx, nil); err != nil {
-		return nil, nil, fmt.Errorf("ping failed: %w", err)
+		return nil, nil, fmt.Errorf("%w: %w", ErrPingFailed, err)
 	}
 
 	fmt.Println("Connected successfully")

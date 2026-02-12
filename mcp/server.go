@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	migrate "github.com/drewjocham/mongork/internal/migration"
 	"io"
 	"log/slog"
 	"os"
@@ -12,16 +13,27 @@ import (
 	"syscall"
 
 	"github.com/drewjocham/mongork/internal/config"
-	"github.com/drewjocham/mongork/internal/migration"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
+var (
+	ErrConfigRequired       = errors.New("config is required")
+	ErrFailedToConnect      = errors.New("failed to connect to mongodb")
+	ErrServerAlreadyRunning = errors.New("mcp server already running")
+	ErrFailedToDisconnect   = errors.New("failed to disconnect mongo client")
+	ErrUnsupportedOutput    = errors.New("unsupported output format")
+	ErrInvalidRegex         = errors.New("invalid regex")
+	ErrFailedToReadOpsLog   = errors.New("failed to read opslog")
+	ErrInvalidTime          = errors.New("invalid time")
+	ErrFailedToMarshalJSON  = errors.New("failed to marshal json")
+)
+
 type MCPServer struct {
 	mu        sync.RWMutex
 	mcpServer *mcp.Server
-	engine    *migration.Engine
+	engine    *migrate.Engine
 	db        *mongo.Database
 	client    *mongo.Client
 	config    *config.Config
@@ -31,7 +43,7 @@ type MCPServer struct {
 
 func NewMCPServer(cfg *config.Config, logger *slog.Logger) (*MCPServer, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("config is required")
+		return nil, ErrConfigRequired
 	}
 
 	s := mcp.NewServer(&mcp.Implementation{
@@ -61,12 +73,12 @@ func (s *MCPServer) ensureConnection(ctx context.Context) error {
 
 	client, err := mongo.Connect(options.Client().ApplyURI(s.config.MongoURL))
 	if err != nil {
-		return fmt.Errorf("failed to connect to mongodb: %w", err)
+		return fmt.Errorf("%w: %w", ErrFailedToConnect, err)
 	}
 
 	s.client = client
 	s.db = client.Database(s.config.Database)
-	s.engine = migration.NewEngine(s.db, s.config.MigrationsCollection, migration.RegisteredMigrations())
+	s.engine = migrate.NewEngine(s.db, s.config.MigrationsCollection, migrate.RegisteredMigrations())
 
 	s.logger.Info("connected to mongodb", "database", s.config.Database)
 	return nil
@@ -79,7 +91,7 @@ func (s *MCPServer) Start() error {
 	if s.cancel != nil {
 		s.mu.Unlock()
 		stop()
-		return fmt.Errorf("mcp server already running")
+		return ErrServerAlreadyRunning
 	}
 	s.cancel = stop
 	s.mu.Unlock()
@@ -117,7 +129,7 @@ func (s *MCPServer) Close(ctx context.Context) error {
 	var errs []error
 	if client != nil {
 		if err := client.Disconnect(ctx); err != nil {
-			errs = append(errs, fmt.Errorf("failed to disconnect mongo client: %w", err))
+			errs = append(errs, fmt.Errorf("%w: %w", ErrFailedToDisconnect, err))
 		}
 	}
 

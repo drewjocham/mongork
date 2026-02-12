@@ -2,12 +2,21 @@ package parser
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/drewjocham/mongork/internal/jsonutil"
 	"github.com/go-playground/validator/v10"
 	"go.mongodb.org/mongo-driver/v2/bson"
+)
+
+var (
+	ErrTypeFieldRequired = errors.New("type field path is required")
+	ErrTypeFieldNotFound = errors.New("type field not found")
+	ErrTypeFieldNotStr   = errors.New("type field is not a string")
+	ErrNoRegistryEntry   = errors.New("no registry entry for type")
+	ErrUnsupportedFormat = errors.New("unsupported format")
 )
 
 type Format string
@@ -95,7 +104,7 @@ func ParseMap(raw []byte, opts ...Option) (map[string]any, error) {
 
 func ParseByType(raw []byte, fieldPath string, reg Registry, opts ...Option) (any, error) {
 	if fieldPath == "" {
-		return nil, fmt.Errorf("type field path is required")
+		return nil, ErrTypeFieldRequired
 	}
 	cfg := defaultConfig(opts...)
 
@@ -106,16 +115,16 @@ func ParseByType(raw []byte, fieldPath string, reg Registry, opts ...Option) (an
 
 	val, ok := valueAtPath(m, fieldPath)
 	if !ok {
-		return nil, fmt.Errorf("type field %q not found", fieldPath)
+		return nil, fmt.Errorf("%w: %q", ErrTypeFieldNotFound, fieldPath)
 	}
 	kind, ok := val.(string)
 	if !ok || kind == "" {
-		return nil, fmt.Errorf("type field %q is not a string", fieldPath)
+		return nil, fmt.Errorf("%w: %q", ErrTypeFieldNotStr, fieldPath)
 	}
 
 	ctor := reg[strings.ToLower(kind)]
 	if ctor == nil {
-		return nil, fmt.Errorf("no registry entry for type %q", kind)
+		return nil, fmt.Errorf("%w: %q", ErrNoRegistryEntry, kind)
 	}
 
 	instance := ctor()
@@ -141,7 +150,7 @@ func DecodePayload(raw string, format Format) ([]byte, error) {
 	case FormatJSON, "":
 		return []byte(raw), nil
 	default:
-		return nil, fmt.Errorf("unsupported format: %s", format)
+		return nil, fmt.Errorf("%w: %s", ErrUnsupportedFormat, format)
 	}
 }
 
@@ -177,7 +186,7 @@ func parseMap(raw []byte, cfg *config) (map[string]any, error) {
 			return nil, err
 		}
 	default:
-		return nil, fmt.Errorf("unsupported format: %s", cfg.format)
+		return nil, fmt.Errorf("%w: %s", ErrUnsupportedFormat, cfg.format)
 	}
 
 	if cfg.cleaner != nil {

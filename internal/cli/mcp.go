@@ -16,6 +16,14 @@ import (
 	_ "github.com/drewjocham/mongork/migrations"
 )
 
+var (
+	ErrFailedToInitLogger   = errors.New("failed to re-initialize logger for mcp")
+	ErrFailedToRegister     = errors.New("failed to register examples")
+	ErrMCPInitFailed        = errors.New("mcp init failed")
+	ErrMCPServerFailure     = errors.New("mcp server failure")
+	ErrCouldNotDeterminePth = errors.New("could not determine path")
+)
+
 func NewMCPCmd() *cobra.Command {
 	var withExamples bool
 
@@ -44,7 +52,7 @@ func NewMCPCmd() *cobra.Command {
 func runMCP(cmd *cobra.Command, withExamples bool) error {
 	logger, err := logging.New(false, "")
 	if err != nil {
-		return fmt.Errorf("failed to re-initialize logger for mcp: %w", err)
+		return fmt.Errorf("%w: %w", ErrFailedToInitLogger, err)
 	}
 	defer func() {
 		if syncErr := zap.S().Sync(); syncErr != nil {
@@ -55,7 +63,7 @@ func runMCP(cmd *cobra.Command, withExamples bool) error {
 	if withExamples {
 		zap.S().Info("Registering example migrations...")
 		if err := registerExampleMigrations(); err != nil {
-			return fmt.Errorf("failed to register examples: %w", err)
+			return fmt.Errorf("%w: %w", ErrFailedToRegister, err)
 		}
 	}
 	cfg, err := getConfig(cmd.Context())
@@ -65,14 +73,14 @@ func runMCP(cmd *cobra.Command, withExamples bool) error {
 
 	server, err := mcp.NewMCPServer(cfg, logger)
 	if err != nil {
-		return fmt.Errorf("mcp init failed: %w", err)
+		return fmt.Errorf("%w: %w", ErrMCPInitFailed, err)
 	}
 	defer server.Close(cmd.Context())
 
 	zap.S().Infow("Starting MCP server", "pid", os.Getpid())
 
 	if err := server.Start(); err != nil && !isClosingError(err) {
-		return fmt.Errorf("mcp server failure: %w", err)
+		return fmt.Errorf("%w: %w", ErrMCPServerFailure, err)
 	}
 
 	zap.S().Info("MCP server session ended")
@@ -82,7 +90,7 @@ func runMCP(cmd *cobra.Command, withExamples bool) error {
 func runMCPConfig(cmd *cobra.Command, _ []string) error {
 	exePath, err := os.Executable()
 	if err != nil {
-		return fmt.Errorf("could not determine path: %w", err)
+		return fmt.Errorf("%w: %w", ErrCouldNotDeterminePth, err)
 	}
 
 	getEnv := func(key, fallback string) string {

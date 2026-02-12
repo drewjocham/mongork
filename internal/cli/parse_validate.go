@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -9,6 +10,11 @@ import (
 	"github.com/drewjocham/mongork/internal/jsonutil"
 	"github.com/drewjocham/mongork/internal/parser"
 	"github.com/spf13/cobra"
+)
+
+var (
+	ErrTypeOrTypeField = errors.New("provide --type or --type-field")
+	ErrNoRegistered    = errors.New("no registered type")
 )
 
 func newParseCmd() *cobra.Command {
@@ -60,13 +66,13 @@ func newValidateCmd() *cobra.Command {
 			}
 
 			if typeName == "" && typeField == "" {
-				return fmt.Errorf("provide --type or --type-field")
+				return ErrTypeOrTypeField
 			}
 
 			if typeName != "" {
 				ctor := parser.DefaultRegistry[strings.ToLower(typeName)]
 				if ctor == nil {
-					return fmt.Errorf("no registered type: %s", typeName)
+					return fmt.Errorf("%w: %s", ErrNoRegistered, typeName)
 				}
 				instance := ctor()
 				if err := parser.ParseInto(raw, instance, parser.WithFormat(

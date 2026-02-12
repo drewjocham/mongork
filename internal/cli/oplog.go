@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -14,6 +15,19 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
+)
+
+var (
+	ErrMongoClientUnavailable = errors.New("mongo client unavailable")
+	ErrInvalidNamespace       = errors.New("invalid namespace")
+	ErrUnsupportedOp          = errors.New("unsupported op")
+	ErrFailedToQueryOplog     = errors.New("failed to query oplog")
+	ErrStreamFailed           = errors.New("stream failed")
+	ErrInvalidTimeFormat      = errors.New("invalid time")
+	ErrOplogCollection        = errors.New("oplog collection not found (requires replica set)")
+	ErrFailedToList           = errors.New("failed to list local collections")
+	ErrFollowAndTo            = errors.New("--to is not supported with --follow")
+	ErrNamespaceOrRegex       = errors.New("use --namespace or --regex, not both")
 )
 
 // Centralized Operation Metadata for DRY mapping
@@ -93,7 +107,7 @@ func NewOplogCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			s, err := getServices(cmd.Context())
 			if err != nil || s.MongoClient == nil {
-				return fmt.Errorf("mongo client unavailable")
+				return ErrMongoClientUnavailable
 			}
 			return runOplog(cmd.Context(), cmd.OutOrStdout(), s.MongoClient, cfg)
 		},
@@ -116,10 +130,10 @@ func NewOplogCmd() *cobra.Command {
 
 func runOplog(ctx context.Context, w io.Writer, client *mongo.Client, cfg oplogConfig) error {
 	if cfg.namespace != "" && cfg.regex != "" {
-		return fmt.Errorf("use --namespace or --regex, not both")
+		return ErrNamespaceOrRegex
 	}
 	if cfg.follow && cfg.to != "" {
-		return fmt.Errorf("--to is not supported with --follow")
+		return ErrFollowAndTo
 	}
 
 	render := func(entries []oplogEntry) error {
@@ -228,7 +242,7 @@ func fetchOplog(ctx context.Context, client *mongo.Client, filter bson.D, limit 
 
 	cur, err := coll.Find(ctx, filter, findOpts)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query oplog: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrFailedToQueryOplog, err)
 	}
 	defer cur.Close(ctx)
 
@@ -283,7 +297,7 @@ func streamOplog(ctx context.Context, client *mongo.Client, cfg oplogConfig, ren
 	if cfg.namespace != "" {
 		parts := strings.SplitN(cfg.namespace, ".", 2)
 		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-			return fmt.Errorf("invalid namespace: %s (expected db.collection)", cfg.namespace)
+			return fmt.Errorf("%w: %s (expected db.collection)", ErrInvalidNamespace, cfg.namespace)
 		}
 		stream, err = client.Database(parts[0]).Collection(parts[1]).Watch(ctx, pipeline, opts)
 	} else {
@@ -291,7 +305,7 @@ func streamOplog(ctx context.Context, client *mongo.Client, cfg oplogConfig, ren
 	}
 
 	if err != nil {
-		return fmt.Errorf("stream failed: %w", err)
+		return fmt.Errorf("%w: %w", ErrStreamFailed, err)
 	}
 	defer stream.Close(ctx)
 
@@ -399,7 +413,7 @@ func parseOps(raw string) ([]string, error) {
 			out = append(out, code)
 			continue
 		}
-		return nil, fmt.Errorf("unsupported op: %s", item)
+		return nil, fmt.Errorf("%w: %s", ErrUnsupportedOp, item)
 	}
 	return out, nil
 }
@@ -420,14 +434,14 @@ func parseTime(v string) (bson.Timestamp, error) {
 			return bson.Timestamp{T: uint32(t.Unix())}, nil
 		}
 	}
-	return bson.Timestamp{}, fmt.Errorf("invalid time: %s", v)
+	return bson.Timestamp{}, fmt.Errorf("%w: %s", ErrInvalidTimeFormat, v)
 }
 
 func oplogCollection(client *mongo.Client) (*mongo.Collection, error) {
 	localDB := client.Database("local")
 	names, err := localDB.ListCollectionNames(context.Background(), bson.D{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to list local collections: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrFailedToList, err)
 	}
 	for _, name := range names {
 		if name == "oplog.rs" {
@@ -437,5 +451,5 @@ func oplogCollection(client *mongo.Client) (*mongo.Collection, error) {
 			return localDB.Collection("oplog.$main"), nil
 		}
 	}
-	return nil, fmt.Errorf("oplog collection not found (requires replica set)")
+	return nil, ErrOplogCollection
 }

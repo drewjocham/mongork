@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -14,6 +15,10 @@ import (
 	"github.com/tidwall/gjson"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+)
+
+var (
+	ErrFailedToMarshalJSON = errors.New("failed to marshal json")
 )
 
 type HealthReport struct {
@@ -51,7 +56,7 @@ func newDBHealthCmd() *cobra.Command {
 			if strings.ToLower(output) == "json" {
 				data, err := bson.MarshalExtJSONIndent(report, true, false, "", "  ")
 				if err != nil {
-					return fmt.Errorf("failed to marshal json: %w", err)
+					return fmt.Errorf("%w: %w", ErrFailedToMarshalJSON, err)
 				}
 				_, err = cmd.OutOrStdout().Write(data)
 				return err

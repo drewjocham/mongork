@@ -2,12 +2,17 @@ package migrations
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"log/slog"
 
 	"go.mongodb.org/mongo-driver/v2/mongo"
+)
+
+var (
+	ErrDropIndexFailed = errors.New("drop index failed")
 )
 
 type Migration_20260208_032830_drew struct{}
@@ -100,7 +105,7 @@ func (m *Migration_20260208_032830_drew) Down(ctx context.Context, db *mongo.Dat
 
 	for _, idx := range []string{"idx_drews_email_unique", "idx_drews_status_created_at"} {
 		if err := collection.Indexes().DropOne(ctx, idx); err != nil {
-			return fmt.Errorf("drop index %s failed: %w", idx, err)
+			return fmt.Errorf("%w: %s: %w", ErrDropIndexFailed, idx, err)
 		}
 	}
 

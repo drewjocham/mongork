@@ -32,6 +32,8 @@ var (
 
 	appVersion, commit, date = "dev", "none", "unknown"
 	ErrShowConfigDisplayed   = errors.New("configuration displayed")
+	ErrUnreachable           = errors.New("unreachable")
+	ErrNoMigrations          = errors.New("no migrations registered")
 )
 
 type Services struct {
@@ -169,7 +171,7 @@ func ping(ctx context.Context, client *mongo.Client, retries int) error {
 		zap.S().Warnf("Attempt %d/%d failed: %v", i, retries, err)
 
 		if i == retries {
-			return fmt.Errorf("unreachable: %w", err)
+			return fmt.Errorf("%w: %w", ErrUnreachable, err)
 		}
 
 		select {
@@ -190,7 +192,7 @@ func loadConfig(path string) (*config.Config, error) {
 
 func validateRegistry() error {
 	if len(migration.RegisteredMigrations()) == 0 {
-		return errors.New("no migrations registered")
+		return ErrNoMigrations
 	}
 	return nil
 }

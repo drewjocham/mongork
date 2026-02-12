@@ -1,6 +1,7 @@
 package migration
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"sync"
@@ -11,23 +12,27 @@ var (
 	registered = make(map[string]Migration)
 
 	versionPattern = regexp.MustCompile(`^\d{8}(?:_\d{3,6})?(?:_[a-z0-9_]+)?$`)
+
+	ErrMigrationNil        = errors.New("migration must not be nil")
+	ErrInvalidVersionFmt   = errors.New("invalid version format")
+	ErrMigrationRegistered = errors.New("migration already registered")
 )
 
 func Register(m Migration) error {
 	if m == nil {
-		return fmt.Errorf("migration must not be nil")
+		return ErrMigrationNil
 	}
 
 	version := m.Version()
 	if !isValidVersionFormat(version) {
-		return fmt.Errorf("invalid version format: %s (expected YYYYMMDD[_HHMMSS][_slug])", version)
+		return fmt.Errorf("%w: %s (expected YYYYMMDD[_HHMMSS][_slug])", ErrInvalidVersionFmt, version)
 	}
 
 	registryMu.Lock()
 	defer registryMu.Unlock()
 
 	if _, exists := registered[version]; exists {
-		return fmt.Errorf("migration %s already registered", version)
+		return fmt.Errorf("%w: %s", ErrMigrationRegistered, version)
 	}
 
 	registered[version] = m
