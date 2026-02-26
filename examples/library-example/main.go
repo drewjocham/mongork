@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	logging "github.com/drewjocham/mongork/internal/log"
 	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -84,6 +86,8 @@ func main() {
 		log.Fatal(err)
 	}
 
+	logger := logging.New(cfg.LogLevel)
+
 	client, db, err := connectToMongoDB(ctx, cfg)
 	if err != nil {
 		log.Fatal(err)
@@ -96,7 +100,7 @@ func main() {
 
 	migration.MustRegister(&ExampleMigration{})
 
-	engine := migration.NewEngine(db, cfg.MigrationsCollection, migration.RegisteredMigrations())
+	engine := migration.NewEngine(ctx)
 
 	if err := runExampleFlow(ctx, engine); err != nil {
 		log.Fatal(err)
@@ -128,8 +132,8 @@ func connectToMongoDB(ctx context.Context, cfg *config.Config) (*mongo.Client, *
 	connCtx, cancel := context.WithTimeout(ctx, connectionTimeout)
 	defer cancel()
 
-	fmt.Printf("Connecting to: %s/%s\n", cfg.MongoURL, cfg.Database)
-	client, err := mongo.Connect(options.Client().ApplyURI(cfg.GetConnectionString()))
+	fmt.Printf("Connecting to: %s/%s\n", cfg.Mongo.URL, cfg.Mongo.Database)
+	client, err := mongo.Connect(connCtx, options.Client().ApplyURI(cfg.GetConnectionString()))
 	if err != nil {
 		return nil, nil, fmt.Errorf("%w: %w", ErrConnectionFailed, err)
 	}
@@ -139,7 +143,7 @@ func connectToMongoDB(ctx context.Context, cfg *config.Config) (*mongo.Client, *
 	}
 
 	fmt.Println("Connected successfully")
-	return client, client.Database(cfg.Database), nil
+	return client, client.Database(cfg.Mongo.Database), nil
 }
 
 func runExampleFlow(ctx context.Context, engine *migration.Engine) error {

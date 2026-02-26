@@ -12,14 +12,11 @@ import (
 	"github.com/drewjocham/mongork/internal/migration"
 	"github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
-	"github.com/tidwall/gjson"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
-var (
-	ErrFailedToMarshalJSON = errors.New("failed to marshal json")
-)
+var ErrFailedToMarshalJSON = errors.New("failed to marshal json")
 
 type HealthReport struct {
 	Database    string            `json:"database"`
@@ -47,8 +44,7 @@ func newDBHealthCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-
-			report, err := buildReport(cmd.Context(), s.MongoClient, s.Config.Database)
+			report, err := buildReport(cmd.Context(), s.MongoClient, s.Config.Mongo.Database)
 			if err != nil {
 				return err
 			}
@@ -71,70 +67,103 @@ func newDBHealthCmd() *cobra.Command {
 }
 
 func buildReport(ctx context.Context, client *mongo.Client, dbName string) (HealthReport, error) {
-	var raw bson.M
-	if err := client.Database("admin").RunCommand(ctx, bson.D{{Key: "serverStatus", Value: 1}}).Decode(&raw); err != nil {
+	var stats bson.M
+	// v2 driver: RunCommand returns a Cursor or a SingleResult. Decode works as expected.
+	if err := client.Database("admin").RunCommand(ctx, bson.D{{Key: "serverStatus", Value: 1}}).Decode(&stats); err != nil {
 		return HealthReport{}, err
 	}
-
-	data, _ := bson.MarshalExtJSON(raw, true, true)
-	json := gjson.ParseBytes(data)
-
 	report := HealthReport{
 		Database: dbName,
-		Role:     json.Get("repl.me").String(),
 		Lag:      make(map[string]string),
 	}
 
-	curr := json.Get("connections.current").Int()
-	avail := json.Get("connections.available").Int()
-	report.Connections = fmt.Sprintf("%d / %d", curr, avail)
-
-	windowSecs := json.Get("oplog.windowSeconds").Float()
-	report.OplogWindow = (time.Duration(windowSecs) * time.Second).String()
-
-	sizeMB := json.Get("oplog.logSizeMB").Uint()
-	report.OplogSize = humanize.Bytes(sizeMB * 1024 * 1024)
-
-	members := json.Get("repl.members").Array()
-	if len(members) > 0 {
-		primaryTS := json.Get("repl.members.#(stateStr==\"PRIMARY\").optime.ts.t").Uint()
-		for _, m := range members {
-			name := m.Get("name").String()
-			state := m.Get("stateStr").String()
-			if m.Get("self").Bool() {
-				report.Role = state
-			}
-
-			ts := m.Get("optime.ts.t").Uint()
-			if lag := primaryTS - ts; lag > 0 {
-				report.Lag[name] = fmt.Sprintf("%ds", lag)
-				report.Warnings = append(report.Warnings, fmt.Sprintf("%s is %ds behind", name, lag))
-			}
-		}
+	if conn, ok := stats["connections"].(bson.M); ok {
+		report.Connections = fmt.Sprintf("%v / %v", conn["current"], conn["available"])
 	}
 
-	if windowSecs < 21600 {
-		report.Warnings = append(report.Warnings, "Oplog window is under 6 hours")
+	// Handle Oplog Window (often returned as int32 or float64 depending on engine version)
+	if oplog, ok := stats["oplog"].(bson.M); ok {
+		var window float64
+		switch v := oplog["windowSeconds"].(type) {
+		case float64:
+			window = v
+		case int32:
+			window = float64(v)
+		case int64:
+			window = float64(v)
+		}
+
+		if window > 0 {
+			report.OplogWindow = (time.Duration(window) * time.Second).String()
+			if window < 21600 {
+				report.Warnings = append(report.Warnings, "Oplog window is under 6 hours")
+			}
+		}
+
+		// Size is usually int32/int64 MB
+		if size, ok := oplog["logSizeMB"].(int32); ok {
+			report.OplogSize = humanize.Bytes(uint64(size) * 1024 * 1024)
+		}
 	}
 
 	return report, nil
 }
 
-func RenderHealthTable(w io.Writer, r HealthReport) {
-	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', tabwriter.StripEscape)
+func processReplicaStats(report *HealthReport, members bson.A) {
+	var primaryTS uint32
+	parsedMembers := make([]bson.M, 0, len(members))
 
+	for _, m := range members {
+		if member, ok := m.(bson.M); ok {
+			parsedMembers = append(parsedMembers, member)
+			if member["stateStr"] == "PRIMARY" {
+				if ot, ok := member["optime"].(bson.M); ok {
+					if ts, ok := ot["ts"].(bson.Timestamp); ok {
+						primaryTS = ts.T
+					}
+				}
+			}
+		}
+	}
+
+	for _, member := range parsedMembers {
+		name, _ := member["name"].(string)
+		if member["self"] == true {
+			report.Role, _ = member["stateStr"].(string)
+		}
+
+		if ot, ok := member["optime"].(bson.M); ok {
+			if ts, ok := ot["ts"].(bson.Timestamp); ok {
+				if primaryTS > ts.T {
+					lag := primaryTS - ts.T
+					report.Lag[name] = fmt.Sprintf("%ds", lag)
+					report.Warnings = append(report.Warnings, fmt.Sprintf("%s is %ds behind", name, lag))
+				}
+			}
+		}
+	}
+}
+
+func RenderHealthTable(w io.Writer, r HealthReport) {
+	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
 	fmt.Fprintf(w, "\n\033[1m--- MONGO HEALTH: %s ---\033[0m\n", strings.ToUpper(r.Database))
 	fmt.Fprintln(tw, "\033[1mMETRIC\tVALUE\033[0m")
 
-	roleColor := "\033[34m"
+	color := "\033[34m" // Blue
 	if strings.EqualFold(r.Role, "PRIMARY") {
-		roleColor = "\033[32m"
+		color = "\033[32m" // Green
 	}
 
-	fmt.Fprintf(tw, "Role\t%s%s\033[0m\n", roleColor, r.Role)
-	fmt.Fprintf(tw, "Connections\t%s\n", r.Connections)
-	fmt.Fprintf(tw, "Oplog Window\t%s\n", r.OplogWindow)
-	fmt.Fprintf(tw, "Oplog Size\t%s\n", r.OplogSize)
+	fields := [][]string{
+		{"Role", fmt.Sprintf("%s%s\033[0m", color, r.Role)},
+		{"Connections", r.Connections},
+		{"Oplog Window", r.OplogWindow},
+		{"Oplog Size", r.OplogSize},
+	}
+
+	for _, f := range fields {
+		fmt.Fprintf(tw, "%s\t%s\n", f[0], f[1])
+	}
 
 	for node, lag := range r.Lag {
 		fmt.Fprintf(tw, "Lag (%s)\t%s\n", node, lag)
@@ -154,22 +183,15 @@ func RenderMigrationTable(w io.Writer, status []migration.MigrationStatus) {
 		fmt.Fprintln(w, "No migrations found.")
 		return
 	}
-
-	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', tabwriter.StripEscape)
-
-	const (
-		iconPending = " [ ] PENDING"
-		iconApplied = " \033[32m[✓] APPLIED\033[0m"
-	)
-
+	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
 	fmt.Fprintln(tw, "\033[1mSTATE\tVERSION\tAPPLIED AT\tDESCRIPTION\033[0m")
 
 	for _, s := range status {
-		state := iconPending
+		state := " [ ] PENDING"
 		appliedAt := "-"
 
 		if s.Applied {
-			state = iconApplied
+			state = " \033[32m[✓] APPLIED\033[0m"
 			if s.AppliedAt != nil {
 				appliedAt = s.AppliedAt.Format("2006-01-02 15:04")
 			}

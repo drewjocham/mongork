@@ -67,12 +67,11 @@ func renderTable(w io.Writer, status []migration.MigrationStatus) {
 	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
 
 	const (
-		iconPending = "  [ ]"
-		iconApplied = "  \033[32m[✓]\033[0m"
+		iconPending = " [ ] PENDING"
+		iconApplied = " \033[32m[✓] APPLIED\033[0m"
 	)
 
-	fmt.Fprintln(tw, "STATE\tVERSION\tAPPLIED AT\tDESCRIPTION")
-	fmt.Fprintln(tw, "-----\t-------\t----------\t-----------")
+	fmt.Fprintln(tw, "\033[1mSTATE\tVERSION\tAPPLIED AT\tDESCRIPTION\033[0m")
 
 	for _, s := range status {
 		state := iconPending

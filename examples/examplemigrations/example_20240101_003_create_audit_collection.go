@@ -1,7 +1,5 @@
 package examplemigrations
 
-// This package contains example migration definitions.
-
 import (
 	"context"
 

@@ -5,10 +5,11 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/drewjocham/mongork/internal/config"
-	logging "github.com/drewjocham/mongork/internal/log"
 	"io"
 	"time"
+
+	"github.com/drewjocham/mongork/internal/config"
+	logging "github.com/drewjocham/mongork/internal/log"
 
 	"github.com/drewjocham/mongork/internal/migration"
 	"github.com/spf13/cobra"

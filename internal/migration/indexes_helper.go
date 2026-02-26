@@ -116,10 +116,6 @@ func (b *IndexBuilder) ensureOptions() *options.IndexOptionsBuilder {
 	return b.model.Options
 }
 
-func CreateIndexes(ctx context.Context, coll *mongo.Collection, indexes ...*IndexBuilder) error {
-	return CreateIndexesWithOptions(ctx, coll, nil, indexes...)
-}
-
 func CreateIndexesWithOptions(
 	ctx context.Context, coll *mongo.Collection, opts []IndexCreateOption, indexes ...*IndexBuilder,
 ) error {

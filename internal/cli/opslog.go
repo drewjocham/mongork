@@ -15,10 +15,9 @@ import (
 )
 
 var (
-	ErrFailedToReadOpsLog    = errors.New("failed to read opslog")
-	ErrInvalidRegex          = errors.New("invalid regex")
-	ErrInvalidTime           = errors.New("invalid time")
-	ErrFailedToGetMigrations = errors.New("failed to get migrations")
+	ErrFailedToReadOpsLog = errors.New("failed to read opslog")
+	ErrInvalidRegex       = errors.New("invalid regex")
+	ErrInvalidTime        = errors.New("invalid time")
 )
 
 func newOpslogCmd() *cobra.Command {

@@ -15,8 +15,9 @@ var (
 
 func newUpCmd() *cobra.Command {
 	var (
-		target string
-		dryRun bool
+		target   string
+		dryRun   bool
+		showDiff bool
 	)
 
 	cmd := &cobra.Command{
@@ -34,6 +35,11 @@ func newUpCmd() *cobra.Command {
 			}
 			if dryRun {
 				renderPlan(cmd.OutOrStdout(), "up", plan)
+				if showDiff {
+					if err := renderSchemaDiff(cmd.Context(), cmd.OutOrStdout()); err != nil {
+						return err
+					}
+				}
 				return nil
 			}
 			if len(plan) == 0 {
@@ -54,6 +60,7 @@ func newUpCmd() *cobra.Command {
 
 	cmd.Flags().StringVar(&target, "target", "", "Target version to migrate up to")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print planned migrations without executing")
+	cmd.Flags().BoolVar(&showDiff, "show-diff", false, "Show schema/index diff during dry-run")
 	return cmd
 }
 

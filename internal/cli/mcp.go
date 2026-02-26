@@ -12,8 +12,6 @@ import (
 	"github.com/drewjocham/mongork/mcp"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
-
-	_ "github.com/drewjocham/mongork/migrations"
 )
 
 var (
@@ -31,11 +29,12 @@ func NewMCPCmd() *cobra.Command {
 		Use:   "mcp",
 		Short: "Start MCP server for AI assistant integration",
 		Long:  "Starts the MCP server using stdin/stdout. Logs are redirected to stderr to avoid protocol corruption.",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runMCP(cmd, withExamples)
 		},
 	}
-	mcpCmd.Flags().BoolVar(&withExamples, "with-examples", false, "Register example migrations on startup")
+
+	mcpCmd.Flags().BoolVar(&withExamples, "with-examples", false, "register example migrations on startup")
 
 	mcpCmd.AddCommand(&cobra.Command{
 		Use:   "config",
@@ -54,11 +53,7 @@ func runMCP(cmd *cobra.Command, withExamples bool) error {
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrFailedToInitLogger, err)
 	}
-	defer func() {
-		if syncErr := zap.S().Sync(); syncErr != nil {
-			zap.L().Warn("failed to flush sugared logger", zap.Error(syncErr))
-		}
-	}()
+	defer func() { _ = zap.S().Sync() }()
 
 	if withExamples {
 		zap.S().Info("Registering example migrations...")
@@ -66,6 +61,7 @@ func runMCP(cmd *cobra.Command, withExamples bool) error {
 			return fmt.Errorf("%w: %w", ErrFailedToRegister, err)
 		}
 	}
+
 	cfg, err := getConfig(cmd.Context())
 	if err != nil {
 		return err
@@ -93,16 +89,9 @@ func runMCPConfig(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("%w: %w", ErrCouldNotDeterminePth, err)
 	}
 
-	getEnv := func(key, fallback string) string {
-		if v := os.Getenv(key); v != "" {
-			return v
-		}
-		return fallback
-	}
-
 	config := map[string]any{
 		"mcpServers": map[string]any{
-			"mt": map[string]any{
+			"mongork": map[string]any{
 				"command": exePath,
 				"args":    []string{"mcp"},
 				"env": map[string]string{
@@ -118,7 +107,17 @@ func runMCPConfig(cmd *cobra.Command, _ []string) error {
 	return enc.Encode(config)
 }
 
+func getEnv(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
+
 func isClosingError(err error) bool {
+	if err == nil {
+		return false
+	}
 	return errors.Is(err, io.EOF) ||
 		errors.Is(err, io.ErrClosedPipe) ||
 		strings.Contains(err.Error(), "broken pipe") ||

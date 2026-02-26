@@ -30,7 +30,6 @@ var (
 	ErrNamespaceOrRegex       = errors.New("use --namespace or --regex, not both")
 )
 
-// Centralized Operation Metadata for DRY mapping
 var operations = struct {
 	codes map[string]string // "i" -> "insert"
 	names map[string]string // "insert" -> "i"

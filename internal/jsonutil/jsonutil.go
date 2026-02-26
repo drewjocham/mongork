@@ -12,9 +12,11 @@ var json = sonic.ConfigFastest
 
 type RawMessage = []byte
 
-func Marshal(v any) ([]byte, error)                              { return json.Marshal(v) }
-func MarshalIndent(v any, prefix, indent string) ([]byte, error) { return json.MarshalIndent(v, prefix, indent) }
-func Unmarshal(data []byte, v any) error                         { return json.Unmarshal(data, v) }
+func Marshal(v any) ([]byte, error) { return json.Marshal(v) }
+func MarshalIndent(v any, prefix, indent string) ([]byte, error) {
+	return json.MarshalIndent(v, prefix, indent)
+}
+func Unmarshal(data []byte, v any) error { return json.Unmarshal(data, v) }
 
 // Encoder wraps sonic's streaming encoder with SetIndent support.
 type Encoder struct {

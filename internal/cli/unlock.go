@@ -7,20 +7,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	ErrFailedToReleaseLock = errors.New("failed to release migration lock")
-)
+var ErrFailedToReleaseLock = errors.New("failed to release migration lock")
 
 func newUnlockCmd() *cobra.Command {
-	var confirm bool
+	var force bool
 
 	cmd := &cobra.Command{
 		Use:   "unlock",
 		Short: "Release a stuck migration lock",
 		Long:  "Forcefully removes the distributed migration lock document so a new migration run can proceed.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			if !confirm && !promptConfirmation(cmd, "WARNING: This will release the migration lock and should "+
-				"only be used if no other instances are running. Continue? [y/N]: ") {
+			if !force && !promptConfirmation(cmd, "WARNING: Forcefully releasing the lock can lead to race conditions if another instance is still running. Continue? [y/N]: ") {
 				fmt.Fprintln(cmd.OutOrStdout(), "Operation cancelled.")
 				return nil
 			}
@@ -39,6 +36,6 @@ func newUnlockCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVarP(&confirm, "yes", "y", false, "Skip the confirmation prompt")
+	cmd.Flags().BoolVarP(&force, "yes", "y", false, "Skip confirmation prompt")
 	return cmd
 }

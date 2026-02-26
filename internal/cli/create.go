@@ -9,7 +9,7 @@ import (
 )
 
 func newCreateCmd() *cobra.Command {
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:         "create [migration_name]",
 		Short:       "Create a new migration file",
 		Args:        cobra.ExactArgs(1),
@@ -21,7 +21,7 @@ func newCreateCmd() *cobra.Command {
 			}
 
 			gen := &migration.Generator{
-				OutputPath: cfg.MigrationsPath,
+				OutputPath: cfg.Mongo.MigrationsPath,
 			}
 
 			path, version, err := gen.Create(args[0])
@@ -33,8 +33,6 @@ func newCreateCmd() *cobra.Command {
 			return nil
 		},
 	}
-
-	return cmd
 }
 
 func renderSuccess(path, version string) {
