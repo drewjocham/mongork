@@ -58,7 +58,6 @@ func NewEngine(db *mongo.Database, collection string, migrations map[string]Migr
 	return engine
 }
 
-// SetLogger overrides the engine logger.
 func (e *Engine) SetLogger(logger *slog.Logger) {
 	if logger != nil {
 		e.logger = logger
@@ -135,7 +134,6 @@ func (e *Engine) Down(ctx context.Context, target string) error {
 	return nil
 }
 
-// Plan returns the ordered list of versions that would be executed for the given direction.
 func (e *Engine) Plan(ctx context.Context, direction Direction, target string) ([]string, error) {
 	applied, err := e.getAppliedMap(ctx)
 	if err != nil {
@@ -200,13 +198,10 @@ func (e *Engine) Force(ctx context.Context, version string) error {
 	return e.markApplied(ctx, m)
 }
 
-// ForceUnlock removes the migration lock document without executing migrations.
 func (e *Engine) ForceUnlock(ctx context.Context) error {
 	_, err := e.lockCollection().DeleteOne(ctx, bson.M{"lock_id": defaultLockID})
 	return err
 }
-
-// --- helpers ---
 
 func (e *Engine) acquireLock(ctx context.Context) error {
 	doc := bson.M{
