@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -49,11 +50,14 @@ func NewMCPCmd() *cobra.Command {
 }
 
 func runMCP(cmd *cobra.Command, withExamples bool) error {
-	logger, err := logging.New(false, "")
+	logger, cleanup, err := logging.New(slog.LevelInfo, "")
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrFailedToInitLogger, err)
 	}
-	defer func() { _ = zap.S().Sync() }()
+	defer func() {
+		cleanup()
+		_ = zap.S().Sync()
+	}()
 
 	if withExamples {
 		zap.S().Info("Registering example migrations...")

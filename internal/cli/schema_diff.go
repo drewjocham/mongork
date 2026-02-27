@@ -14,7 +14,7 @@ func renderSchemaDiff(ctx context.Context, out io.Writer) error {
 		return fmt.Errorf("mongo client unavailable")
 	}
 
-	live, err := diff.InspectLive(ctx, s.MongoClient.Database(s.Config.Database))
+	live, err := diff.InspectLive(ctx, s.MongoClient.Database(s.Config.Mongo.Database))
 	if err != nil {
 		return err
 	}

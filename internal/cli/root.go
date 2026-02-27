@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"time"
 
 	"github.com/drewjocham/mongork/internal/config"
@@ -30,6 +31,7 @@ var (
 	debugMode  bool
 	logFile    string
 	showConfig bool
+	logCleanup = func() {}
 
 	appVersion, commit, date = "dev", "none", "unknown"
 	ErrShowConfigDisplayed   = errors.New("configuration displayed")
@@ -55,9 +57,15 @@ func newRootCmd() *cobra.Command {
 		Short:   "Mongork migration toolkit",
 		Version: fmt.Sprintf("%s (commit: %s, build date: %s)", appVersion, commit, date),
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			if _, err := logging.New(debugMode, logFile); err != nil {
+			level := slog.LevelInfo
+			if debugMode {
+				level = slog.LevelDebug
+			}
+			_, cleanup, err := logging.New(level, logFile)
+			if err != nil {
 				return err
 			}
+			logCleanup = cleanup
 
 			s, err := bootstrap(cmd.Context(), configFile, showConfig, cmd.OutOrStdout(), isOffline(cmd))
 			if err != nil {
@@ -79,6 +87,8 @@ func newRootCmd() *cobra.Command {
 			if s, ok := cmd.Context().Value(ctxServicesKey).(*Services); ok {
 				teardown(s)
 			}
+			logCleanup()
+			logCleanup = func() {}
 		},
 		SilenceUsage: true,
 	}
@@ -128,22 +138,28 @@ func bootstrap(ctx context.Context, path string, show bool, out io.Writer, offli
 		return nil, err
 	}
 
+	engine := migration.NewEngine(
+		client.Database(cfg.Mongo.Database),
+		cfg.Mongo.Collection,
+		migration.RegisteredMigrations(),
+	)
+	engine.SetLogger(slog.Default())
+
 	return &Services{
 		Config:      cfg,
 		MongoClient: client,
-		Engine: migration.NewEngine(client.Database(cfg.Database), cfg.MigrationsCollection,
-			migration.RegisteredMigrations()),
+		Engine:      engine,
 	}, nil
 }
 
 func dial(ctx context.Context, cfg *config.Config) (*mongo.Client, error) {
 	opts := options.Client().
 		ApplyURI(cfg.GetConnectionString()).
-		SetMaxPoolSize(uint64(cfg.MaxPoolSize)).
-		SetMinPoolSize(uint64(cfg.MinPoolSize))
+		SetMaxPoolSize(uint64(cfg.Mongo.MaxPoolSize)).
+		SetMinPoolSize(uint64(cfg.Mongo.MinPoolSize))
 
-	if cfg.SSLEnabled {
-		opts.SetTLSConfig(&tls.Config{InsecureSkipVerify: cfg.SSLInsecure})
+	if cfg.Mongo.SSLEnabled {
+		opts.SetTLSConfig(&tls.Config{InsecureSkipVerify: cfg.Mongo.SSLInsecure})
 	}
 
 	client, err := mongo.Connect(opts)

@@ -106,7 +106,8 @@ func main() {
 
 	migration.MustRegister(&ExampleMigration{})
 
-	engine := migration.NewEngine(db, logger, cfg)
+	engine := migration.NewEngine(db, cfg.Mongo.Collection, migration.RegisteredMigrations())
+	engine.SetLogger(logger)
 
 	if err := runExampleFlow(ctx, engine); err != nil {
 		log.Fatal(err)
@@ -164,7 +165,7 @@ func runExampleFlow(ctx context.Context, engine *migration.Engine) error {
 	}
 
 	fmt.Println("\nMigrating Up...")
-	if err := engine.Up(ctx); err != nil {
+	if err := engine.Up(ctx, ""); err != nil {
 		return err
 	}
 
@@ -174,25 +175,15 @@ func runExampleFlow(ctx context.Context, engine *migration.Engine) error {
 	}
 
 	fmt.Println("\nRolling Back...")
-	status, err := engine.Status(ctx)
-	if err != nil {
+	if err := engine.Down(ctx, ""); err != nil {
 		return err
 	}
-
-	for i := len(status) - 1; i >= 0; i-- {
-		if status[i].Applied {
-			if err := engine.Down(ctx, status[i].Version); err != nil {
-				return err
-			}
-			fmt.Printf("Rolled back: %s\n", status[i].Version)
-			break
-		}
-	}
+	fmt.Println("Rolled back applied migrations")
 	return nil
 }
 
 func showStatus(ctx context.Context, engine *migration.Engine) error {
-	status, err := engine.Status(ctx)
+	status, err := engine.GetStatus(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get migration status: %w", err)
 	}

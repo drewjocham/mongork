@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"io"
 	"log/slog"
 	"os"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/drewjocham/mongork/internal/config"
 	migrate "github.com/drewjocham/mongork/internal/migration"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
@@ -26,17 +26,17 @@ var (
 )
 
 type McpServer struct {
-	mu        sync.RWMutex
-	McpServer *mcp.Server
-	engine    *migrate.Engine
-	db        *mongo.Database
-	client    *mongo.Client
-	config    *config.Config
-	cancel    context.CancelFunc
-	logger    *slog.Logger
+	mu     sync.RWMutex
+	server *mcp.Server
+	engine *migrate.Engine
+	db     *mongo.Database
+	client *mongo.Client
+	config *config.Config
+	cancel context.CancelFunc
+	logger *slog.Logger
 }
 
-func NewMcpServer(cfg *config.Config, logger *slog.Logger) (*McpServer, error) {
+func NewMCPServer(cfg *config.Config, logger *slog.Logger) (*McpServer, error) {
 	if cfg == nil {
 		return nil, ErrConfigRequired
 	}
@@ -47,9 +47,9 @@ func NewMcpServer(cfg *config.Config, logger *slog.Logger) (*McpServer, error) {
 	}, &mcp.ServerOptions{})
 
 	srv := &McpServer{
-		McpServer: s,
-		config:    cfg,
-		logger:    logger,
+		server: s,
+		config: cfg,
+		logger: logger,
 	}
 
 	srv.registerTools()
@@ -59,7 +59,6 @@ func NewMcpServer(cfg *config.Config, logger *slog.Logger) (*McpServer, error) {
 func (s *McpServer) ensureConnection(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
 	if s.client != nil {
 		if err := s.client.Ping(ctx, nil); err == nil {
 			return nil
@@ -70,10 +69,16 @@ func (s *McpServer) ensureConnection(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrFailedToConnect, err)
 	}
+	if err := client.Ping(ctx, nil); err != nil {
+		_ = client.Disconnect(ctx)
+		return fmt.Errorf("%w: %w", ErrFailedToConnect, err)
+	}
 
 	s.client = client
 	s.db = client.Database(s.config.Mongo.Database)
-	s.engine = migrate.NewEngine(s.db, s.logger, s.config)
+	engine := migrate.NewEngine(s.db, s.config.Mongo.Collection, migrate.RegisteredMigrations())
+	engine.SetLogger(s.logger)
+	s.engine = engine
 
 	s.logger.Info("connected to mongodb", "database", s.config.Mongo.Database)
 	return nil
@@ -103,7 +108,7 @@ func (s *McpServer) Start() error {
 }
 
 func (s *McpServer) Serve(ctx context.Context, r io.Reader, w io.Writer) error {
-	return s.McpServer.Run(ctx, &mcp.IOTransport{
+	return s.server.Run(ctx, &mcp.IOTransport{
 		Reader: io.NopCloser(r),
 		Writer: nopWriteCloser{Writer: w},
 	})

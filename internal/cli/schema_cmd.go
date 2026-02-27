@@ -63,7 +63,7 @@ func newSchemaDiffCmd() *cobra.Command {
 				return fmt.Errorf("mongo client unavailable")
 			}
 
-			live, err := diff.InspectLive(cmd.Context(), s.MongoClient.Database(s.Config.Database))
+			live, err := diff.InspectLive(cmd.Context(), s.MongoClient.Database(s.Config.Mongo.Database))
 			if err != nil {
 				return err
 			}
