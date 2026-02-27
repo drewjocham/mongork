@@ -23,6 +23,7 @@ type Config struct {
 	GoogleDocs GoogleDocsConfig `envPrefix:"GOOGLE_"`
 	LogLevel   log.Level        `env:"LOG_LEVEL" envDefault:"info"`
 	Timeout    time.Duration    `env:"TIMEOUT" envDefault:"60s"`
+	LogFile    string           `env:"LOG_FILE" envDefault:"mcp.log"`
 }
 
 type MongoConfig struct {

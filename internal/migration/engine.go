@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"log/slog"
 	"sort"
 	"time"
@@ -116,25 +117,23 @@ func (e *Engine) Down(ctx context.Context, targetVersion string) error {
 	return e.markUnapplied(ctx, targetVersion)
 }
 
-func (e *Engine) Status(ctx context.Context) (string, error) {
+func (e *Engine) Status(ctx context.Context) ([]MigrationStatus, error) {
 	applied, err := e.getAppliedVersions(ctx)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	all := RegisteredMigrations()
 	versions := e.sortedVersions(all)
 
-	var res string
-	res += fmt.Sprintf("%-20s | %-10s | %s\n", "VERSION", "STATUS", "DESCRIPTION")
-	res += "------------------------------------------------------------\n"
-
+	var res []MigrationStatus
 	for _, v := range versions {
-		status := "[ PENDING ]"
-		if _, ok := applied[v]; ok {
-			status = "[ APPLIED ]"
-		}
-		res += fmt.Sprintf("%-20s | %-10s | %s\n", v, status, all[v].Description())
+		_, isApplied := applied[v]
+		res = append(res, MigrationStatus{
+			Version:     v,
+			Description: all[v].Description(),
+			Applied:     isApplied,
+		})
 	}
 
 	return res, nil
@@ -164,7 +163,10 @@ func (e *Engine) releaseLock(ctx context.Context) {
 
 func (e *Engine) getAppliedVersions(ctx context.Context) (map[string]bool, error) {
 	coll := e.db.Collection(e.cfg.Mongo.Collection)
-	cursor, err := coll.Find(ctx, bson.M{"_id": bson.M{"$ne": "migration_lock"}})
+
+	cursor, err := coll.Find(ctx, bson.M{
+		"version": bson.M{"$exists": true},
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -184,13 +186,20 @@ func (e *Engine) getAppliedVersions(ctx context.Context) (map[string]bool, error
 func (e *Engine) markApplied(ctx context.Context, m Migration) error {
 	coll := e.db.Collection(e.cfg.Mongo.Collection)
 	now := time.Now().UTC()
+
 	status := MigrationStatus{
 		Version:     m.Version(),
 		Description: m.Description(),
 		Applied:     true,
 		AppliedAt:   &now,
 	}
-	_, err := coll.InsertOne(ctx, status)
+
+	opts := options.UpdateOne().SetUpsert(true)
+	_, err := coll.UpdateOne(ctx,
+		bson.M{"version": m.Version()},
+		bson.M{"$set": status},
+		opts,
+	)
 	return err
 }
 
