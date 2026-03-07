@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"strings"
 
 	"github.com/drewjocham/mongork/internal/migration"
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
@@ -32,101 +32,65 @@ func (s *McpServer) registerTools() {
 	statusSchema := noArgsSchema()
 	upSchema := optionalVersionSchema()
 	downSchema := requiredVersionSchema()
-	s.server.AddTool(&mcp.Tool{
+	s.server.AddTool(&mcpsdk.Tool{
 		Name:        "migration_status",
 		Description: "Check applied and pending migrations.",
 		InputSchema: statusSchema,
 	}, s.handleStatus)
-
-	s.server.AddTool(&mcp.Tool{
+	s.server.AddTool(&mcpsdk.Tool{
 		Name:        "migration_plan",
 		Description: "Calculate which migrations are pending without executing them.",
 		InputSchema: noArgsSchema(),
 	}, s.handlePlan)
-
-	s.server.AddTool(&mcp.Tool{
+	s.server.AddTool(&mcpsdk.Tool{
 		Name:        "migration_up",
 		Description: "Apply pending migrations.",
 		InputSchema: upSchema,
 	}, s.handleUp)
-
-	s.server.AddTool(&mcp.Tool{
+	s.server.AddTool(&mcpsdk.Tool{
 		Name:        "migration_down",
 		Description: "Roll back migrations.",
 		InputSchema: downSchema,
 	}, s.handleDown)
-
-	s.server.AddTool(&mcp.Tool{
+	s.server.AddTool(&mcpsdk.Tool{
 		Name:        "database_schema",
 		Description: "View collections and indexes.",
 		InputSchema: noArgsSchema(),
 	}, s.handleSchema)
 }
-
-func (s *McpServer) handleStatus(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	if err := s.ensureConnection(ctx); err != nil {
-		return nil, err
-	}
-	status, err := s.engine.GetStatus(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrFailedToGetStatus, err)
-	}
-	return textResult(migration.FormatStatusTable(status)), nil
+func (s *McpServer) handleStatus(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
+	return s.withConnection(ctx, func() (*mcpsdk.CallToolResult, error) {
+		return s.statusTableResult(ctx)
+	})
 }
 
-func (s *McpServer) handlePlan(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	if err := s.ensureConnection(ctx); err != nil {
-		return nil, err
-	}
-	pending, err := s.engine.GetStatus(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return textResult(migration.FormatStatusTable(pending)), nil
+func (s *McpServer) handlePlan(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
+	return s.withConnection(ctx, func() (*mcpsdk.CallToolResult, error) {
+		return s.statusTableResult(ctx)
+	})
 }
 
-func (s *McpServer) handleUp(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	if err := s.ensureConnection(ctx); err != nil {
-		return nil, err
-	}
-	version, err := parseVersionArgument(requestArguments(req), false)
-	if err != nil {
-		return nil, err
-	}
-	if err := s.engine.Up(ctx, version); err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrMigrationUpFailed, err)
-	}
-	return textResult("Migrations applied successfully."), nil
+func (s *McpServer) handleUp(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
+	return s.runVersionedMigration(ctx, req, false, ErrMigrationUpFailed, "Migrations applied successfully.", s.engine.Up)
 }
 
-func (s *McpServer) handleDown(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	if err := s.ensureConnection(ctx); err != nil {
-		return nil, err
-	}
-	version, err := parseVersionArgument(requestArguments(req), true)
-	if err != nil {
-		return nil, err
-	}
-	if err := s.engine.Down(ctx, version); err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrMigrationDownFailed, err)
-	}
-	return textResult("Rollback completed successfully."), nil
+func (s *McpServer) handleDown(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
+	return s.runVersionedMigration(ctx, req, true, ErrMigrationDownFailed, "Rollback completed successfully.", s.engine.Down)
 }
 
-func (s *McpServer) handleSchema(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	if err := s.ensureConnection(ctx); err != nil {
-		return nil, err
-	}
-	collections, err := s.db.ListCollectionNames(ctx, bson.D{})
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrFailedToListColl, err)
-	}
-	var b strings.Builder
-	fmt.Fprintf(&b, "### Database Schema: `%s`\n\n", s.db.Name())
-	for _, name := range collections {
-		s.appendCollectionSchema(&b, ctx, name)
-	}
-	return textResult(b.String()), nil
+func (s *McpServer) handleSchema(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
+	return s.withConnection(ctx, func() (*mcpsdk.CallToolResult, error) {
+		collections, err := s.db.ListCollectionNames(ctx, bson.D{})
+		if err != nil {
+			return nil, fmt.Errorf("%w: %w", ErrFailedToListColl, err)
+		}
+		var b strings.Builder
+		fmt.Fprintf(&b, "### Database Schema: `%s`\n\n", s.db.Name())
+		for _, name := range collections {
+			s.appendCollectionSchema(&b, ctx, name)
+		}
+		return textResult(b.String()), nil
+	})
 }
 
 func (s *McpServer) appendCollectionSchema(b *strings.Builder, ctx context.Context, name string) {
@@ -139,6 +103,7 @@ func (s *McpServer) appendCollectionSchema(b *strings.Builder, ctx context.Conte
 	defer cursor.Close(ctx)
 	var idxs []bson.M
 	if err := cursor.All(ctx, &idxs); err != nil {
+		fmt.Fprintf(b, "| *Error: %v* | | |\n\n", err)
 		return
 	}
 	for _, idx := range idxs {
@@ -151,13 +116,48 @@ func (s *McpServer) appendCollectionSchema(b *strings.Builder, ctx context.Conte
 	b.WriteString("\n")
 }
 
-func textResult(text string) *mcp.CallToolResult {
-	return &mcp.CallToolResult{
-		Content: []mcp.Content{&mcp.TextContent{Text: text}},
+func textResult(text string) *mcpsdk.CallToolResult {
+	return &mcpsdk.CallToolResult{
+		Content: []mcpsdk.Content{&mcpsdk.TextContent{Text: text}},
 	}
 }
 
-func requestArguments(req *mcp.CallToolRequest) json.RawMessage {
+func (s *McpServer) withConnection(ctx context.Context, run func() (*mcpsdk.CallToolResult, error)) (*mcpsdk.CallToolResult, error) {
+	if err := s.ensureConnection(ctx); err != nil {
+		return nil, err
+	}
+	return run()
+}
+
+func (s *McpServer) statusTableResult(ctx context.Context) (*mcpsdk.CallToolResult, error) {
+	status, err := s.engine.GetStatus(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrFailedToGetStatus, err)
+	}
+	return textResult(migration.FormatStatusTable(status)), nil
+}
+
+func (s *McpServer) runVersionedMigration(
+	ctx context.Context,
+	req *mcpsdk.CallToolRequest,
+	required bool,
+	wrapErr error,
+	successMessage string,
+	run func(context.Context, string) error,
+) (*mcpsdk.CallToolResult, error) {
+	return s.withConnection(ctx, func() (*mcpsdk.CallToolResult, error) {
+		version, err := parseVersionArgument(requestArguments(req), required)
+		if err != nil {
+			return nil, err
+		}
+		if err := run(ctx, version); err != nil {
+			return nil, fmt.Errorf("%w: %w", wrapErr, err)
+		}
+		return textResult(successMessage), nil
+	})
+}
+
+func requestArguments(req *mcpsdk.CallToolRequest) json.RawMessage {
 	if req == nil || req.Params == nil {
 		return nil
 	}

@@ -80,7 +80,8 @@ func TestCLICommands(t *testing.T) {
 			args: []string{"mcp", "config"},
 			assert: func(t *testing.T, _ *TestEnv, output string) {
 				assert.Contains(t, output, "\"mcpServers\"")
-				assert.Contains(t, output, "\"mt\"")
+				assert.Contains(t, output, "\"mongork\"")
+				assert.Contains(t, output, "\"mcp\"")
 			},
 		},
 		{
@@ -150,7 +151,7 @@ func TestCLICommands(t *testing.T) {
 		{
 			name: "Unlock releases lock",
 			setup: func(t *testing.T, env *TestEnv) {
-				lockColl := env.MongoClient.Database(env.DBName).Collection("migrations_lock")
+				lockColl := env.MongoClient.Database(env.DBName).Collection("schema_migrations_lock")
 				_, err := lockColl.InsertOne(ctx, bson.M{
 					"lock_id":     "migration_engine_lock",
 					"acquired_at": time.Now().UTC(),
@@ -202,7 +203,7 @@ func setupIntegrationEnv(t *testing.T, ctx context.Context) *TestEnv {
 	migrationsPath := filepath.Join(t.TempDir(), "migrations")
 
 	configContent := fmt.Sprintf(
-		"MONGO_URL=%s\nMONGO_DATABASE=%s\nMIGRATIONS_COLLECTION=%s\nMIGRATIONS_PATH=%s\n",
+		"MONGO_URL=%s\nMONGO_DATABASE=%s\nMONGO_MIGRATIONS_COLLECTION=%s\nMONGO_MIGRATIONS_PATH=%s\n",
 		connStr,
 		dbName,
 		colName,
@@ -219,8 +220,8 @@ func setupIntegrationEnv(t *testing.T, ctx context.Context) *TestEnv {
 
 	t.Setenv("MONGO_URL", connStr)
 	t.Setenv("MONGO_DATABASE", dbName)
-	t.Setenv("MIGRATIONS_COLLECTION", colName)
-	t.Setenv("MIGRATIONS_PATH", migrationsPath)
+	t.Setenv("MONGO_MIGRATIONS_COLLECTION", colName)
+	t.Setenv("MONGO_MIGRATIONS_PATH", migrationsPath)
 
 	return &TestEnv{
 		ConfigPath:     configPath,
@@ -284,7 +285,7 @@ func assertMigrationRecordExists(t *testing.T, env *TestEnv, version string) {
 
 func assertLockReleased(t *testing.T, env *TestEnv) {
 	t.Helper()
-	coll := env.MongoClient.Database(env.DBName).Collection("migrations_lock")
+	coll := env.MongoClient.Database(env.DBName).Collection("schema_migrations_lock")
 	ctx := context.Background()
 	count, err := coll.CountDocuments(ctx, bson.M{"lock_id": "migration_engine_lock"})
 	require.NoError(t, err)
