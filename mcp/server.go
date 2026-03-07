@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"io"
 	"log/slog"
 	"os"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/drewjocham/mongork/internal/config"
 	migrate "github.com/drewjocham/mongork/internal/migration"
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
@@ -27,7 +27,7 @@ var (
 
 type McpServer struct {
 	mu     sync.RWMutex
-	server *mcp.Server
+	server *mcpsdk.Server
 	engine *migrate.Engine
 	db     *mongo.Database
 	client *mongo.Client
@@ -41,10 +41,10 @@ func NewMCPServer(cfg *config.Config, logger *slog.Logger) (*McpServer, error) {
 		return nil, ErrConfigRequired
 	}
 
-	s := mcp.NewServer(&mcp.Implementation{
+	s := mcpsdk.NewServer(&mcpsdk.Implementation{
 		Name:    "mongork",
 		Version: "1.0.0",
-	}, &mcp.ServerOptions{})
+	}, &mcpsdk.ServerOptions{})
 
 	srv := &McpServer{
 		server: s,
@@ -108,7 +108,7 @@ func (s *McpServer) Start() error {
 }
 
 func (s *McpServer) Serve(ctx context.Context, r io.Reader, w io.Writer) error {
-	return s.server.Run(ctx, &mcp.IOTransport{
+	return s.server.Run(ctx, &mcpsdk.IOTransport{
 		Reader: io.NopCloser(r),
 		Writer: nopWriteCloser{Writer: w},
 	})

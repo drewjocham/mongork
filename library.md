@@ -271,7 +271,7 @@ package schema
 
 import (
     "github.com/drewjocham/mongork/internal/schema"
-    "go.mongodb.org/mongo-driver/bson"
+    "go.mongodb.org/mongo-driver/v2/bson"
 )
 
 func init() {

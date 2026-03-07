@@ -27,7 +27,6 @@ func (m *Migration20251207_192545TestDemoAgl) Up(
 	ctx context.Context, db *mongo.Database,
 ) error {
 	collection := db.Collection("demo")
-	//
 	// Create indexes, insert data, etc.
 	index := mongo.IndexModel{
 		Keys:    bson.D{{Key: "field_name", Value: 1}},
@@ -43,10 +42,8 @@ func (m *Migration20251207_192545TestDemoAgl) Up(
 func (m *Migration20251207_192545TestDemoAgl) Down(
 	ctx context.Context, db *mongo.Database,
 ) error {
-	// Example:
 	collection := db.Collection("demo")
 	if err := collection.Indexes().DropOne(ctx, "ian_nat_idx"); err != nil {
-		// Log the error but don't fail the migration if the index doesn't exist
 		fmt.Printf("Could not drop index ian_nat_idx (it may not exist): %v\n", err)
 	}
 
