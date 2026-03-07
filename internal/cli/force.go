@@ -9,9 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var (
-	ErrFailedToForce = errors.New("failed to force")
-)
+var ErrFailedToForce = errors.New("failed to force mark migration")
 
 func newForceCmd() *cobra.Command {
 	var assumeYes bool

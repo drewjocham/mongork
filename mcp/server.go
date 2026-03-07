@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	migrate "github.com/drewjocham/mongork/internal/migration"
 	"io"
 	"log/slog"
 	"os"
@@ -13,7 +12,8 @@ import (
 	"syscall"
 
 	"github.com/drewjocham/mongork/internal/config"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
+	migrate "github.com/drewjocham/mongork/internal/migration"
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
@@ -23,68 +23,68 @@ var (
 	ErrFailedToConnect      = errors.New("failed to connect to mongodb")
 	ErrServerAlreadyRunning = errors.New("mcp server already running")
 	ErrFailedToDisconnect   = errors.New("failed to disconnect mongo client")
-	ErrUnsupportedOutput    = errors.New("unsupported output format")
-	ErrInvalidRegex         = errors.New("invalid regex")
-	ErrFailedToReadOpsLog   = errors.New("failed to read opslog")
-	ErrInvalidTime          = errors.New("invalid time")
-	ErrFailedToMarshalJSON  = errors.New("failed to marshal json")
 )
 
-type MCPServer struct {
-	mu        sync.RWMutex
-	mcpServer *mcp.Server
-	engine    *migrate.Engine
-	db        *mongo.Database
-	client    *mongo.Client
-	config    *config.Config
-	cancel    context.CancelFunc
-	logger    *slog.Logger
+type McpServer struct {
+	mu     sync.RWMutex
+	server *mcpsdk.Server
+	engine *migrate.Engine
+	db     *mongo.Database
+	client *mongo.Client
+	config *config.Config
+	cancel context.CancelFunc
+	logger *slog.Logger
 }
 
-func NewMCPServer(cfg *config.Config, logger *slog.Logger) (*MCPServer, error) {
+func NewMCPServer(cfg *config.Config, logger *slog.Logger) (*McpServer, error) {
 	if cfg == nil {
 		return nil, ErrConfigRequired
 	}
 
-	s := mcp.NewServer(&mcp.Implementation{
+	s := mcpsdk.NewServer(&mcpsdk.Implementation{
 		Name:    "mongork",
 		Version: "1.0.0",
-	}, nil)
+	}, &mcpsdk.ServerOptions{})
 
-	srv := &MCPServer{
-		mcpServer: s,
-		config:    cfg,
-		logger:    logger,
+	srv := &McpServer{
+		server: s,
+		config: cfg,
+		logger: logger,
 	}
 
 	srv.registerTools()
 	return srv, nil
 }
 
-func (s *MCPServer) ensureConnection(ctx context.Context) error {
+func (s *McpServer) ensureConnection(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
 	if s.client != nil {
 		if err := s.client.Ping(ctx, nil); err == nil {
 			return nil
 		}
 	}
 
-	client, err := mongo.Connect(options.Client().ApplyURI(s.config.MongoURL))
+	client, err := mongo.Connect(options.Client().ApplyURI(s.config.Mongo.URL))
 	if err != nil {
+		return fmt.Errorf("%w: %w", ErrFailedToConnect, err)
+	}
+	if err := client.Ping(ctx, nil); err != nil {
+		_ = client.Disconnect(ctx)
 		return fmt.Errorf("%w: %w", ErrFailedToConnect, err)
 	}
 
 	s.client = client
-	s.db = client.Database(s.config.Database)
-	s.engine = migrate.NewEngine(s.db, s.config.MigrationsCollection, migrate.RegisteredMigrations())
+	s.db = client.Database(s.config.Mongo.Database)
+	engine := migrate.NewEngine(s.db, s.config.Mongo.Collection, migrate.RegisteredMigrations())
+	engine.SetLogger(s.logger)
+	s.engine = engine
 
-	s.logger.Info("connected to mongodb", "database", s.config.Database)
+	s.logger.Info("connected to mongodb", "database", s.config.Mongo.Database)
 	return nil
 }
 
-func (s *MCPServer) Start() error {
+func (s *McpServer) Start() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 
 	s.mu.Lock()
@@ -107,14 +107,14 @@ func (s *MCPServer) Start() error {
 	return s.Serve(ctx, os.Stdin, os.Stdout)
 }
 
-func (s *MCPServer) Serve(ctx context.Context, r io.Reader, w io.Writer) error {
-	return s.mcpServer.Run(ctx, &mcp.IOTransport{
+func (s *McpServer) Serve(ctx context.Context, r io.Reader, w io.Writer) error {
+	return s.server.Run(ctx, &mcpsdk.IOTransport{
 		Reader: io.NopCloser(r),
 		Writer: nopWriteCloser{Writer: w},
 	})
 }
 
-func (s *MCPServer) Close(ctx context.Context) error {
+func (s *McpServer) Close(ctx context.Context) error {
 	s.mu.Lock()
 	client := s.client
 	s.client = nil

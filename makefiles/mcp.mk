@@ -3,20 +3,21 @@ MAKEFILES_DIR := $(dir $(THIS_MK))
 REPO_ROOT := $(abspath $(MAKEFILES_DIR)/..)
 
 include $(MAKEFILES_DIR)/variables/vars.mk
+include $(MAKEFILES_DIR)/build.mk
 
 .PHONY: mcp mcp-build mcp-examples mcp-test mcp-client-test mcp-integration-test
 
 mcp-build: ## Build the combined Docker image for MCP
 	@echo "$(GREEN)Building MCP Docker image mongo-mongodb-combined-mcp:v1...$(NC)"
-	docker build -t mongo-mongodb-combined-mcp:v1 -f deployments/Dockerfile.mcp .
+	cd $(REPO_ROOT) && docker build -t mongo-mongodb-combined-mcp:v1 -f docker/Dockerfile.mcp .
 
-mcp: mcp-build ## Start MCP server for AI assistant integration
+mcp: build ## Start MCP server for AI assistant integration
 	@echo "$(GREEN)Starting MCP server...$(NC)"
-	./$(BUILD_DIR)/$(BINARY_NAME) mcp
+	$(BUILD_DIR)/$(BINARY_NAME) mcp
 
-mcp-examples: mcp-build ## Start MCP server with example migrations registered
+mcp-examples: build ## Start MCP server with example migrations registered
 	@echo "$(GREEN)Starting MCP server with examples...$(NC)"
-	./$(BUILD_DIR)/$(BINARY_NAME) mcp --with-examples
+	$(BUILD_DIR)/$(BINARY_NAME) mcp --with-examples
 
 mcp-test: ## Test MCP server with example request
 	@set -euo pipefail; \
@@ -35,7 +36,7 @@ mcp-test: ## Test MCP server with example request
 		echo "$(GREEN)MCP integration tests finished.$(NC)"
 
 
-mcp-client-test: mcp-build ## Test MCP server interactively
+mcp-client-test: build ## Test MCP server interactively
 	@echo "$(GREEN)Testing MCP server interactively (Ctrl+C to exit)...$(NC)"
 	@echo "Try these commands:"
 	@echo "  {\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}"
@@ -46,7 +47,7 @@ mcp-client-test: mcp-build ## Test MCP server interactively
 	export MONGO_DATABASE=test; \
 	export MONGO_USERNAME=""; \
 	export MONGO_PASSWORD=""; \
-	./$(BUILD_DIR)/$(BINARY_NAME) mcp --with-examples
+	$(BUILD_DIR)/$(BINARY_NAME) mcp --with-examples
 
 mcp-integration-test: ## Run MCP integration test (requires reachable MongoDB via env)
 	@echo "$(GREEN)Running MCP integration test...$(NC)"
@@ -54,12 +55,12 @@ mcp-integration-test: ## Run MCP integration test (requires reachable MongoDB vi
 	@cd $(REPO_ROOT) && go test -tags=integration ./mcp -run TestMCPIntegration_IndexingAndMigrations -count=1
 
 .PHONY: mcp-config
-mcp-config: mcp-build
+mcp-config: build
 	@echo "--- Copy the JSON below into your MCP config file ---"
 	@echo "{"
 	@echo "  \"mcpServers\": {"
 	@echo "    \"mongo\": {"
-	@echo "      \"command\": \"$(shell pwd)/build/mongo\","
+	@echo "      \"command\": \"$(BUILD_DIR)/$(BINARY_NAME)\","
 	@echo "      \"args\": [\"mcp\"],"
 	@echo "      \"env\": {"
 	@echo "        \"MONGO_URI\": \"$(or $(MONGO_URI),mongodb://localhost:27017)\","

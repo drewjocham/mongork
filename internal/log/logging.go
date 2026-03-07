@@ -4,32 +4,35 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"time"
+
+	"github.com/lmittmann/tint"
 )
 
-func New(debug bool, logFile string) (*slog.Logger, error) {
+func New(level slog.Level, logFile string) (*slog.Logger, func(), error) {
 	var writers []io.Writer
 	writers = append(writers, os.Stderr)
 
+	cleanup := func() {}
+
 	if logFile != "" {
-		f, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+		f, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		writers = append(writers, f)
+		cleanup = func() { f.Close() }
 	}
 
-	handler := slog.NewTextHandler(io.MultiWriter(writers...), &slog.HandlerOptions{
-		Level: chooseLevel(debug),
+	handler := tint.NewHandler(io.MultiWriter(writers...), &tint.Options{
+		Level:      level,
+		TimeFormat: time.Kitchen,
 	})
-	ctxHandler := &ContextHandler{Handler: handler}
-	logger := slog.New(ctxHandler)
-	slog.SetDefault(logger)
-	return logger, nil
-}
 
-func chooseLevel(debug bool) slog.Level {
-	if debug {
-		return slog.LevelDebug
-	}
-	return slog.LevelInfo
+	handler = &ContextHandler{Handler: handler}
+
+	logger := slog.New(handler)
+	slog.SetDefault(logger)
+
+	return logger, cleanup, nil
 }

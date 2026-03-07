@@ -7,6 +7,7 @@ This document explains how to use mongo as a Model Context Protocol (MCP) server
 The Model Context Protocol (MCP) allows AI agents to connect to external data sources and tools. With the use of these agents mongo can be aided with your permission to manage MongoDB migrations, answer questions, or offer advice using natural language.
 
 ## Quick Start
+Need the deep dive? See [`docs/mcp-architecture.md`](docs/mcp-architecture.md) for lifecycle diagrams, lock management, and failure-mode guidance before you wire an MCP host to production.
 
 ### 1. Build the Tool
 ```bash
@@ -36,6 +37,9 @@ export MIGRATIONS_COLLECTION="schema_migrations"
 
 # Start with example migrations for testing
 ./build/mongo mcp --with-examples
+
+# Include the zero-downtime practical scenarios
+./build/mongo mcp --with-examples --tags include_examples
 ```
 
 ## AI Assistant Integration
@@ -246,6 +250,8 @@ Your database is now back to the previous state. You can review and fix the migr
 - Consider using read-only database users for status checks
 - Review migration files before allowing AI to create them
 - Use environment-specific database configurations
+- Long-running actions acquire a document lock in `migrations_lock`. If a host disconnects, rerun the CLI or execute `mongo unlock` to clear the lock before retrying.
+- Each practical example stores resume checkpoints (`migration_progress` collection) so you can safely restart MCP or rerun a migration after a crash.
 
 ## Development and Testing
 

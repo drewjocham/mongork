@@ -262,6 +262,54 @@ func main() {
 }
 ```
 
+### 4. Schema Registry & Diffing (`schema`)
+
+You can register expected indexes and validators in code, then use `mongo schema diff` or `mongo up --dry-run --show-diff` to compare against a live database.
+
+```go
+package schema
+
+import (
+    "github.com/drewjocham/mongork/internal/schema"
+    "go.mongodb.org/mongo-driver/v2/bson"
+)
+
+func init() {
+    schema.MustRegister(
+        schema.IndexSpec{
+            Collection: "users",
+            Name:       "idx_users_email",
+            Keys:       bson.D{{Key: "email", Value: 1}},
+            Unique:     true,
+        },
+    )
+
+    schema.MustRegisterValidator(schema.ValidatorSpec{
+        Collection:  "users",
+        Description: "enforce user schema",
+        Level:       "moderate",
+        Schema: bson.M{
+            "$jsonSchema": bson.M{
+                "bsonType": "object",
+                "properties": bson.M{
+                    "email": bson.M{"bsonType": "string"},
+                },
+            },
+        },
+    })
+}
+```
+
+CLI examples:
+
+```bash
+# Compare local registry vs live MongoDB
+mongo schema diff
+
+# Show diff during a dry-run
+mongo up --dry-run --show-diff
+```
+
 ## Advanced Usage
 
 ### Custom Migration Engine
@@ -458,12 +506,6 @@ MONGO_MAX_POOL_SIZE=10
 MONGO_MIN_POOL_SIZE=1
 MONGO_MAX_IDLE_TIME=300
 MONGO_TIMEOUT=60
-
-# AI Models (optional)
-AI_ENABLED=false
-AI_PROVIDER=openai
-OPENAI_API_KEY=your_openai_key
-OPENAI_MODEL=gpt-4o-mini
 
 # Google Docs Integration (optional)
 GOOGLE_DOCS_ENABLED=false

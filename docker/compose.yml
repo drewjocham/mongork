@@ -4,9 +4,10 @@ x-dev-base: &base
   networks:
     - mcp_network
 
+
 services:
   mongork-cli:
-    <<: *base
+    <<: [*base]
     image: drewjocham/mongork-cli:latest
     container_name: mongork-cli
     build:
@@ -28,7 +29,7 @@ services:
       - .env
 
   mongork-mcp:
-    <<: *base
+    <<: [*base]
     image: drewjocham/mongo-mcp:latest
     container_name: mongork-mcp
     build:
@@ -51,7 +52,7 @@ services:
       - .env
 
   mongo-db:
-    <<: *base
+    <<: [*base]
     image: mongo:8.0
     container_name: mongo-mcp
     command: [

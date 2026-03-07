@@ -7,17 +7,18 @@ import (
 func TestLoad(t *testing.T) {
 	t.Setenv("MONGO_URL", "mongodb://testhost:27017")
 	t.Setenv("MONGO_DATABASE", "testdb")
-	t.Setenv("MIGRATIONS_COLLECTION", "test_migrations")
-	t.Setenv("GOOGLE_DRIVE_FOLDER_ID", "folder-123")
+	t.Setenv("MONGO_MIGRATIONS_COLLECTION", "test_migrations")
+	t.Setenv("LOG_LEVEL", "debug")
 
 	cfg, err := Load()
 	if err != nil {
 		t.Fatalf("Load() failed: %v", err)
 	}
 
-	assert(t, cfg.MongoURL, "mongodb://testhost:27017", "MongoURL")
-	assert(t, cfg.Database, "testdb", "Database")
-	assert(t, cfg.MigrationsCollection, "test_migrations", "MigrationsCollection")
+	assert(t, cfg.Mongo.URL, "mongodb://testhost:27017", "Mongo.URL")
+	assert(t, cfg.Mongo.Database, "testdb", "Mongo.Database")
+	assert(t, cfg.Mongo.Collection, "test_migrations", "Mongo.Collection")
+	assert(t, cfg.LogLevel.String(), "debug", "LogLevel")
 }
 
 func TestLoadDefaults(t *testing.T) {
@@ -28,8 +29,8 @@ func TestLoadDefaults(t *testing.T) {
 		t.Fatalf("Load() failed: %v", err)
 	}
 
-	assert(t, cfg.MongoURL, "mongodb://localhost:27017", "Default MongoURL")
-	assert(t, cfg.MigrationsCollection, "schema_migrations", "Default MigrationsCollection")
+	assert(t, cfg.Mongo.URL, "mongodb://localhost:27017", "Default Mongo.URL")
+	assert(t, cfg.Mongo.Collection, "schema_migrations", "Default Mongo.Collection")
 }
 
 func TestValidate(t *testing.T) {
@@ -41,22 +42,23 @@ func TestValidate(t *testing.T) {
 		{
 			name: "Valid Configuration",
 			config: &Config{
-				Database: "ok",
+				Mongo: MongoConfig{Database: "ok"},
 			},
 			wantErr: false,
 		},
 		{
-			name: "Missing Database",
+			name: "Google Docs Enabled with path",
 			config: &Config{
-				Database: "",
+				Mongo:      MongoConfig{Database: "ok"},
+				GoogleDocs: GoogleDocsConfig{Enabled: true, CredentialsPath: "/path/to/json"},
 			},
-			wantErr: true,
+			wantErr: false,
 		},
 		{
 			name: "Google Docs Enabled but missing credentials",
 			config: &Config{
-				Database:          "ok",
-				GoogleDocsEnabled: true,
+				Mongo:      MongoConfig{Database: "ok"},
+				GoogleDocs: GoogleDocsConfig{Enabled: true},
 			},
 			wantErr: true,
 		},

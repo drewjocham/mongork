@@ -4,10 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	clog "github.com/containerd/log"
+	logging "github.com/drewjocham/mongork/internal/log"
 	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
+	"text/tabwriter"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -84,6 +88,12 @@ func main() {
 		log.Fatal(err)
 	}
 
+	logger, cleanup, err := logging.New(slog.Level(cfg.LogLevel), cfg.LogFile)
+	if err != nil {
+		log.Fatalf("failed to initialize logger: %v", err)
+	}
+	defer cleanup()
+
 	client, db, err := connectToMongoDB(ctx, cfg)
 	if err != nil {
 		log.Fatal(err)
@@ -96,7 +106,8 @@ func main() {
 
 	migration.MustRegister(&ExampleMigration{})
 
-	engine := migration.NewEngine(db, cfg.MigrationsCollection, migration.RegisteredMigrations())
+	engine := migration.NewEngine(db, cfg.Mongo.Collection, migration.RegisteredMigrations())
+	engine.SetLogger(logger)
 
 	if err := runExampleFlow(ctx, engine); err != nil {
 		log.Fatal(err)
@@ -107,11 +118,15 @@ func main() {
 
 func loadConfig() (*config.Config, error) {
 	cfg, err := config.Load()
+
 	if err != nil {
 		cfg = &config.Config{
-			MongoURL:             "mongodb://localhost:27017",
-			Database:             "standalone_example",
-			MigrationsCollection: "schema_migrations",
+			Mongo: config.MongoConfig{
+				URL:        "mongodb://localhost:27017",
+				Database:   "standalone_example",
+				Collection: "schema_migrations",
+			},
+			LogLevel: clog.InfoLevel,
 		}
 		fmt.Println("Using default configuration")
 	} else {
@@ -121,6 +136,7 @@ func loadConfig() (*config.Config, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrValidationFailed, err)
 	}
+
 	return cfg, nil
 }
 
@@ -128,7 +144,7 @@ func connectToMongoDB(ctx context.Context, cfg *config.Config) (*mongo.Client, *
 	connCtx, cancel := context.WithTimeout(ctx, connectionTimeout)
 	defer cancel()
 
-	fmt.Printf("Connecting to: %s/%s\n", cfg.MongoURL, cfg.Database)
+	fmt.Printf("Connecting to: %s/%s\n", cfg.Mongo.URL, cfg.Mongo.Database)
 	client, err := mongo.Connect(options.Client().ApplyURI(cfg.GetConnectionString()))
 	if err != nil {
 		return nil, nil, fmt.Errorf("%w: %w", ErrConnectionFailed, err)
@@ -139,7 +155,7 @@ func connectToMongoDB(ctx context.Context, cfg *config.Config) (*mongo.Client, *
 	}
 
 	fmt.Println("Connected successfully")
-	return client, client.Database(cfg.Database), nil
+	return client, client.Database(cfg.Mongo.Database), nil
 }
 
 func runExampleFlow(ctx context.Context, engine *migration.Engine) error {
@@ -159,27 +175,17 @@ func runExampleFlow(ctx context.Context, engine *migration.Engine) error {
 	}
 
 	fmt.Println("\nRolling Back...")
-	status, err := engine.GetStatus(ctx)
-	if err != nil {
+	if err := engine.Down(ctx, ""); err != nil {
 		return err
 	}
-
-	for i := len(status) - 1; i >= 0; i-- {
-		if status[i].Applied {
-			if err := engine.Down(ctx, status[i].Version); err != nil {
-				return err
-			}
-			fmt.Printf("Rolled back: %s\n", status[i].Version)
-			break
-		}
-	}
+	fmt.Println("Rolled back applied migrations")
 	return nil
 }
 
 func showStatus(ctx context.Context, engine *migration.Engine) error {
 	status, err := engine.GetStatus(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get migration status: %w", err)
 	}
 
 	if len(status) == 0 {
@@ -187,12 +193,17 @@ func showStatus(ctx context.Context, engine *migration.Engine) error {
 		return nil
 	}
 
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
+	fmt.Fprintln(w, "VERSION\tAPPLIED\tDESCRIPTION")
+	fmt.Fprintln(w, "-------\t-------\t-----------")
+
 	for _, s := range status {
-		applied := "No"
+		applied := "✘ No"
 		if s.Applied {
-			applied = "Yes"
+			applied = "✔ Yes"
 		}
-		fmt.Printf("   %-15s %-8s %s\n", s.Version, applied, s.Description)
+		fmt.Fprintf(w, "%s\t%s\t%s\n", s.Version, applied, s.Description)
 	}
-	return nil
+
+	return w.Flush()
 }

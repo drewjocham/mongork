@@ -15,9 +15,10 @@ var (
 
 func newDownCmd() *cobra.Command {
 	var (
-		target  string
-		confirm bool
-		dryRun  bool
+		target   string
+		confirm  bool
+		dryRun   bool
+		showDiff bool
 	)
 
 	cmd := &cobra.Command{
@@ -38,6 +39,11 @@ func newDownCmd() *cobra.Command {
 
 			if dryRun {
 				renderPlan(cmd.OutOrStdout(), "down", plan)
+				if showDiff {
+					if err := renderSchemaDiff(cmd.Context(), cmd.OutOrStdout()); err != nil {
+						return err
+					}
+				}
 				return nil
 			}
 			if len(plan) == 0 {
@@ -68,6 +74,7 @@ func newDownCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&target, "target", "t", "", "Version to roll back to (exclusive)")
 	cmd.Flags().BoolVarP(&confirm, "yes", "y", false, "Skip confirmation prompt")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print planned rollbacks without executing")
+	cmd.Flags().BoolVar(&showDiff, "show-diff", false, "Show schema/index diff during dry-run")
 
 	return cmd
 }

@@ -46,8 +46,8 @@ func main() {
 		}
 	}()
 
-	db := client.Database(cfg.Database)
-	engine := migration.NewEngine(db, cfg.MigrationsCollection, migration.RegisteredMigrations())
+	db := client.Database(cfg.Mongo.Database)
+	engine := migration.NewEngine(db, cfg.Mongo.Collection, migration.RegisteredMigrations())
 
 	switch cmd := os.Args[1]; cmd {
 	case "up":

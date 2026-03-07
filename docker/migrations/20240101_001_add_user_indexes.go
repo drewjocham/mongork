@@ -35,7 +35,6 @@ func (m *AddUserIndexesMigration) Up(
 		Options: options.Index().
 			SetName("idx_users_email_unique").
 			SetUnique(true),
-		// SetBackground is deprecated in MongoDB 4.2+
 	}
 
 	// Create index for created_at field
@@ -45,7 +44,6 @@ func (m *AddUserIndexesMigration) Up(
 		},
 		Options: options.Index().
 			SetName("idx_users_created_at"),
-		// SetBackground is deprecated in MongoDB 4.2+
 	}
 
 	// Create compound index for status and created_at
@@ -56,7 +54,6 @@ func (m *AddUserIndexesMigration) Up(
 		},
 		Options: options.Index().
 			SetName("idx_users_status_created_at"),
-		// SetBackground is deprecated in MongoDB 4.2+
 	}
 
 	// Create all indexes
