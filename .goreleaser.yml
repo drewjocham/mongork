@@ -85,7 +85,7 @@ brews:
   - name: mongork
     repository:
       owner: drewjocham
-      name: homebrew-tap
+      name: homebrew-mongork
       branch: main
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     directory: Formula
@@ -155,7 +155,7 @@ release:
 
     #### Homebrew (macOS/Linux)
     ```bash
-    brew tap drewjocham/tap
+    brew tap drewjocham/mongork
     brew install mongork
     ```
 
