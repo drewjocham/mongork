@@ -68,8 +68,10 @@ func newDBHealthCmd() *cobra.Command {
 
 func buildReport(ctx context.Context, client *mongo.Client, dbName string) (HealthReport, error) {
 	var stats bson.M
-	// v2 driver: RunCommand returns a Cursor or a SingleResult. Decode works as expected.
-	if err := client.Database("admin").RunCommand(ctx, bson.D{{Key: "serverStatus", Value: 1}}).Decode(&stats); err != nil {
+	if err := client.
+		Database("admin").
+		RunCommand(ctx, bson.D{{Key: "serverStatus", Value: 1}}).
+		Decode(&stats); err != nil {
 		return HealthReport{}, err
 	}
 	report := HealthReport{
@@ -81,7 +83,6 @@ func buildReport(ctx context.Context, client *mongo.Client, dbName string) (Heal
 		report.Connections = fmt.Sprintf("%v / %v", conn["current"], conn["available"])
 	}
 
-	// Handle Oplog Window (often returned as int32 or float64 depending on engine version)
 	if oplog, ok := stats["oplog"].(bson.M); ok {
 		var window float64
 		switch v := oplog["windowSeconds"].(type) {
@@ -107,41 +108,6 @@ func buildReport(ctx context.Context, client *mongo.Client, dbName string) (Heal
 	}
 
 	return report, nil
-}
-
-func processReplicaStats(report *HealthReport, members bson.A) {
-	var primaryTS uint32
-	parsedMembers := make([]bson.M, 0, len(members))
-
-	for _, m := range members {
-		if member, ok := m.(bson.M); ok {
-			parsedMembers = append(parsedMembers, member)
-			if member["stateStr"] == "PRIMARY" {
-				if ot, ok := member["optime"].(bson.M); ok {
-					if ts, ok := ot["ts"].(bson.Timestamp); ok {
-						primaryTS = ts.T
-					}
-				}
-			}
-		}
-	}
-
-	for _, member := range parsedMembers {
-		name, _ := member["name"].(string)
-		if member["self"] == true {
-			report.Role, _ = member["stateStr"].(string)
-		}
-
-		if ot, ok := member["optime"].(bson.M); ok {
-			if ts, ok := ot["ts"].(bson.Timestamp); ok {
-				if primaryTS > ts.T {
-					lag := primaryTS - ts.T
-					report.Lag[name] = fmt.Sprintf("%ds", lag)
-					report.Warnings = append(report.Warnings, fmt.Sprintf("%s is %ds behind", name, lag))
-				}
-			}
-		}
-	}
 }
 
 func RenderHealthTable(w io.Writer, r HealthReport) {

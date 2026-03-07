@@ -48,7 +48,7 @@ func Register(m Migration) error {
 	}
 
 	version := m.Version()
-	if !versionPattern.MatchString(version) {
+	if !isValidVersionFormat(version) {
 		return fmt.Errorf("%w: %s", ErrInvalidVersionFmt, version)
 	}
 
@@ -99,6 +99,10 @@ func matchesAll(v string, m Migration, filters []MigrationFilter) bool {
 		}
 	}
 	return true
+}
+
+func isValidVersionFormat(version string) bool {
+	return versionPattern.MatchString(version)
 }
 
 func CreateIndexes(ctx context.Context, coll *mongo.Collection, models ...mongo.IndexModel) error {

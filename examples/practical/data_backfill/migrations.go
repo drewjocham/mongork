@@ -195,24 +195,29 @@ func CreateIndexes(ctx context.Context, coll *mongo.Collection, models ...mongo.
 
 func DropIndexes(ctx context.Context, coll *mongo.Collection, names ...string) error {
 	for _, name := range names {
-		if _, err := coll.Indexes().DropOne(ctx, name); err != nil {
+		if err := coll.Indexes().DropOne(ctx, name); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-type CollectionOption func(*options.CreateCollectionOptions)
+type CollectionOption func(*options.CreateCollectionOptionsBuilder)
 
 func WithValidator(schema bson.M) CollectionOption {
-	return func(o *options.CreateCollectionOptions) { o.SetValidator(schema) }
+	return func(o *options.CreateCollectionOptionsBuilder) { o.SetValidator(schema) }
 }
 
 func WithValidationLevel(level string) CollectionOption {
-	return func(o *options.CreateCollectionOptions) { o.SetValidationLevel(level) }
+	return func(o *options.CreateCollectionOptionsBuilder) { o.SetValidationLevel(level) }
 }
 
-func EnsureCollection(ctx context.Context, db *mongo.Database, name string, opts ...CollectionOption) (*mongo.Collection, error) {
+func EnsureCollection(
+	ctx context.Context,
+	db *mongo.Database,
+	name string,
+	opts ...CollectionOption,
+) (*mongo.Collection, error) {
 	o := options.CreateCollection()
 	for _, opt := range opts {
 		opt(o)

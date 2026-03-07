@@ -52,8 +52,8 @@ func (m *createOrdersArchive) Up(ctx context.Context, db *mongo.Database) error 
 	}
 
 	return migration.CreateIndexes(ctx, db.Collection(ordersArchiveColl),
-		migration.Index(migration.Desc("completed_at")).Name("idx_orders_archive_completed_at").Build(),
-		migration.Index(migration.Asc("hot_order_id")).Name("idx_orders_archive_hot_order_id").Unique(),
+		migration.Index(migration.Desc("completed_at")).Name("idx_orders_archive_completed_at").Model(),
+		migration.Index(migration.Asc("hot_order_id")).Name("idx_orders_archive_hot_order_id").Unique().Model(),
 	)
 }
 
@@ -84,7 +84,7 @@ func (m *moveHistoricOrders) Up(ctx context.Context, db *mongo.Database) error {
 
 	for {
 		filter := bson.M{"completed_at": bson.M{"$lt": cutoff}}
-		if lastID != nil {
+		if lastID != bson.NilObjectID {
 			filter["_id"] = bson.M{"$gt": lastID}
 		}
 

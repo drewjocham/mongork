@@ -8,7 +8,7 @@ include $(MAKEFILES_DIR)/variables/vars.mk
 
 lint: ## Run golangci-lint
 	@echo "$(GREEN)Running linter...$(NC)"
-	@cd $(REPO_ROOT) && golangci-lint run ./...
+	@cd $(REPO_ROOT) && go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LOCAL_VERSION) run ./...
 
 format: ## Format Go code
 	@echo "$(GREEN)Formatting code...$(NC)"

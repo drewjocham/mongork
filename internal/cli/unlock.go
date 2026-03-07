@@ -9,6 +9,9 @@ import (
 
 var ErrFailedToReleaseLock = errors.New("failed to release migration lock")
 
+const unlockWarningPrompt = "WARNING: Forcefully releasing the lock can lead to race conditions " +
+	"if another instance is still running. Continue? [y/N]: "
+
 func newUnlockCmd() *cobra.Command {
 	var force bool
 
@@ -17,7 +20,7 @@ func newUnlockCmd() *cobra.Command {
 		Short: "Release a stuck migration lock",
 		Long:  "Forcefully removes the distributed migration lock document so a new migration run can proceed.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			if !force && !promptConfirmation(cmd, "WARNING: Forcefully releasing the lock can lead to race conditions if another instance is still running. Continue? [y/N]: ") {
+			if !force && !promptConfirmation(cmd, unlockWarningPrompt) {
 				fmt.Fprintln(cmd.OutOrStdout(), "Operation cancelled.")
 				return nil
 			}

@@ -1,9 +1,8 @@
 package diff
 
 import (
+	"go.mongodb.org/mongo-driver/v2/bson"
 	"testing"
-
-	"go.mongodb.org/mongo-driver/bson"
 )
 
 func TestCompareIndexesAndValidators(t *testing.T) {

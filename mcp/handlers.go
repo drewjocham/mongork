@@ -71,11 +71,25 @@ func (s *McpServer) handlePlan(ctx context.Context, req *mcpsdk.CallToolRequest)
 }
 
 func (s *McpServer) handleUp(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
-	return s.runVersionedMigration(ctx, req, false, ErrMigrationUpFailed, "Migrations applied successfully.", s.engine.Up)
+	return s.runVersionedMigration(
+		ctx,
+		req,
+		false,
+		ErrMigrationUpFailed,
+		"Migrations applied successfully.",
+		s.engine.Up,
+	)
 }
 
 func (s *McpServer) handleDown(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
-	return s.runVersionedMigration(ctx, req, true, ErrMigrationDownFailed, "Rollback completed successfully.", s.engine.Down)
+	return s.runVersionedMigration(
+		ctx,
+		req,
+		true,
+		ErrMigrationDownFailed,
+		"Rollback completed successfully.",
+		s.engine.Down,
+	)
 }
 
 func (s *McpServer) handleSchema(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
@@ -122,7 +136,10 @@ func textResult(text string) *mcpsdk.CallToolResult {
 	}
 }
 
-func (s *McpServer) withConnection(ctx context.Context, run func() (*mcpsdk.CallToolResult, error)) (*mcpsdk.CallToolResult, error) {
+func (s *McpServer) withConnection(
+	ctx context.Context,
+	run func() (*mcpsdk.CallToolResult, error),
+) (*mcpsdk.CallToolResult, error) {
 	if err := s.ensureConnection(ctx); err != nil {
 		return nil, err
 	}
