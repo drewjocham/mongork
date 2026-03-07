@@ -1,6 +1,6 @@
 # Installation Guide
 
-This guide covers all the ways you can install and use mongo: as a CLI tool via Homebrew, as a standalone binary, as a Docker container, or as a Go library.
+This guide covers all the ways you can install and use mongo: as a CLI tool via Homebrew, as a standalone binary, as a Docker container, or as a Go library. The primary command is `mongo`, with `mmo` available as a command alias.
 
 ## Table of Contents
 

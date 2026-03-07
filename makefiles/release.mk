@@ -28,5 +28,5 @@ release-beta: ## Create and release a new beta version
 
 sync-library:
 	MODULE=github.com/drewjocham/mongork; \
-	VERSION=v1.0.0; \
+	VERSION=v0.0.3-beta.6 \
 	curl -sS "https://proxy.golang.org/$${MODULE}/@v/$${VERSION}.info"

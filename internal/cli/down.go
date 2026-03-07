@@ -25,8 +25,8 @@ func newDownCmd() *cobra.Command {
 		Use:   "down",
 		Short: "Roll back migrations",
 		Long:  "Roll back applied migrations in reverse order. Use --target to stop before a specific version.",
-		Example: `  mt down --target 20240101_001
-  mt down --yes  # Rollback ALL migrations without prompting`,
+		Example: `  mongo down --target 20240101_001
+  mongo down --yes  # Rollback ALL migrations without prompting`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			engine, err := getEngine(cmd.Context())
 			if err != nil {

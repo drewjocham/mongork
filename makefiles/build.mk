@@ -20,6 +20,7 @@ build: deps ## Build the binary
 	@echo "$(GREEN)Building $(BINARY_NAME)...$(NC)"
 	@mkdir -p $(BUILD_DIR)
 	cd $(REPO_ROOT) && $(GO_ENV) CGO_ENABLED=0 go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) $(MAIN_PACKAGE)
+	ln -sf $(BINARY_NAME) $(BUILD_DIR)/mmo
 
 # --- Configuration ---
 BINARY_NAME  := mongork
@@ -45,6 +46,7 @@ install: build ## Install the binary to GOBIN
 	@echo "$(GREEN)Installing $(BINARY_NAME) to $(GOBIN)...$(NC)"
 	@mkdir -p $(GOBIN)
 	cp $(BUILD_DIR)/$(BINARY_NAME) $(GOBIN)/$(BINARY_NAME)
+	ln -sf $(BINARY_NAME) $(GOBIN)/mmo
 
 .PHONY: clean
 clean: ## Clean build artifacts

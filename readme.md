@@ -1,6 +1,6 @@
 # mongork
 
-A lightweight MongoDB migration engine, CLI, and MCP-ready toolset that lets you keep migrations, change streams, and scripted operations in sync with your clusters. The binary is exposed as `mongo` (aliases `mt` and `mmt`) so you can run your status, up/down, and oplog commands with a single executable.
+A lightweight MongoDB migration engine, CLI, and MCP-ready toolset that lets you keep migrations, change streams, and scripted operations in sync with your clusters. The binary is exposed as `mongo` (aliases `mmo`, `mt`, and `mmt`) so you can run your status, up/down, and oplog commands with a single executable.
 
 ## Highlights
 - **Stateful Migration Engine:** Distributed locking, checksum validation, and smooth `Up`/`Down` flows keep the schema registry in sync across teams.
