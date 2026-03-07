@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	clog "github.com/containerd/log"
-	logging "github.com/drewjocham/mongork/internal/log"
 	"log"
 	"log/slog"
 	"os"
@@ -13,6 +11,9 @@ import (
 	"syscall"
 	"text/tabwriter"
 	"time"
+
+	clog "github.com/containerd/log"
+	logging "github.com/drewjocham/mongork/internal/log"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
