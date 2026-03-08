@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"sort"
 	"time"
 
@@ -32,6 +33,21 @@ type MigrationRecord struct {
 	Description string    `json:"description" bson:"description"`
 	AppliedAt   time.Time `json:"applied_at" bson:"applied_at"`
 	Checksum    string    `json:"checksum" bson:"checksum"`
+}
+
+type LockInfo struct {
+	Active     bool      `json:"active"`
+	LockID     string    `json:"lock_id,omitempty" bson:"lock_id,omitempty"`
+	Host       string    `json:"host,omitempty" bson:"host,omitempty"`
+	PID        int       `json:"pid,omitempty" bson:"pid,omitempty"`
+	AcquiredAt time.Time `json:"acquired_at,omitempty" bson:"acquired_at,omitempty"`
+}
+
+type ChecksumDrift struct {
+	Version       string `json:"version"`
+	Stored        string `json:"stored"`
+	Local         string `json:"local"`
+	DriftDetected bool   `json:"drift_detected"`
 }
 
 type Engine struct {
@@ -203,10 +219,54 @@ func (e *Engine) ForceUnlock(ctx context.Context) error {
 	return err
 }
 
+func (e *Engine) GetLockInfo(ctx context.Context) (LockInfo, error) {
+	var info LockInfo
+	err := e.lockCollection().FindOne(ctx, bson.M{"lock_id": defaultLockID}).Decode(&info)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return LockInfo{Active: false}, nil
+	}
+	if err != nil {
+		return LockInfo{}, err
+	}
+	info.Active = true
+	return info, nil
+}
+
+func (e *Engine) ChecksumDrifts(ctx context.Context) ([]ChecksumDrift, error) {
+	records, err := e.ListApplied(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]ChecksumDrift, 0, len(records))
+	for _, rec := range records {
+		m, ok := e.migrations[rec.Version]
+		if !ok {
+			out = append(out, ChecksumDrift{
+				Version:       rec.Version,
+				Stored:        rec.Checksum,
+				Local:         "",
+				DriftDetected: true,
+			})
+			continue
+		}
+		local := checksumFor(m)
+		out = append(out, ChecksumDrift{
+			Version:       rec.Version,
+			Stored:        rec.Checksum,
+			Local:         local,
+			DriftDetected: rec.Checksum != "" && local != rec.Checksum,
+		})
+	}
+	return out, nil
+}
+
 func (e *Engine) acquireLock(ctx context.Context) error {
+	host, _ := os.Hostname()
 	doc := bson.M{
 		"lock_id":     defaultLockID,
 		"acquired_at": time.Now().UTC(),
+		"host":        host,
+		"pid":         os.Getpid(),
 	}
 	_, err := e.lockCollection().InsertOne(ctx, doc)
 	if mongo.IsDuplicateKeyError(err) {

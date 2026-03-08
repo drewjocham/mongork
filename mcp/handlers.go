@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/drewjocham/mongork/internal/migration"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -60,13 +61,17 @@ func (s *McpServer) registerTools() {
 }
 func (s *McpServer) handleStatus(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
 	return s.withConnection(ctx, func() (*mcpsdk.CallToolResult, error) {
-		return s.statusTableResult(ctx)
+		result, err := s.statusTableResult(ctx)
+		recordToolResult("migration_status", "", err)
+		return result, err
 	})
 }
 
 func (s *McpServer) handlePlan(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
 	return s.withConnection(ctx, func() (*mcpsdk.CallToolResult, error) {
-		return s.statusTableResult(ctx)
+		result, err := s.statusTableResult(ctx)
+		recordToolResult("migration_plan", "", err)
+		return result, err
 	})
 }
 
@@ -74,6 +79,7 @@ func (s *McpServer) handleUp(ctx context.Context, req *mcpsdk.CallToolRequest) (
 	return s.runVersionedMigration(
 		ctx,
 		req,
+		"migration_up",
 		false,
 		ErrMigrationUpFailed,
 		"Migrations applied successfully.",
@@ -85,6 +91,7 @@ func (s *McpServer) handleDown(ctx context.Context, req *mcpsdk.CallToolRequest)
 	return s.runVersionedMigration(
 		ctx,
 		req,
+		"migration_down",
 		true,
 		ErrMigrationDownFailed,
 		"Rollback completed successfully.",
@@ -96,6 +103,7 @@ func (s *McpServer) handleSchema(ctx context.Context, req *mcpsdk.CallToolReques
 	return s.withConnection(ctx, func() (*mcpsdk.CallToolResult, error) {
 		collections, err := s.db.ListCollectionNames(ctx, bson.D{})
 		if err != nil {
+			recordToolResult("database_schema", "", err)
 			return nil, fmt.Errorf("%w: %w", ErrFailedToListColl, err)
 		}
 		var b strings.Builder
@@ -103,6 +111,7 @@ func (s *McpServer) handleSchema(ctx context.Context, req *mcpsdk.CallToolReques
 		for _, name := range collections {
 			s.appendCollectionSchema(&b, ctx, name)
 		}
+		recordToolResult("database_schema", fmt.Sprintf("collections=%d", len(collections)), nil)
 		return textResult(b.String()), nil
 	})
 }
@@ -157,6 +166,7 @@ func (s *McpServer) statusTableResult(ctx context.Context) (*mcpsdk.CallToolResu
 func (s *McpServer) runVersionedMigration(
 	ctx context.Context,
 	req *mcpsdk.CallToolRequest,
+	toolName string,
 	required bool,
 	wrapErr error,
 	successMessage string,
@@ -165,13 +175,30 @@ func (s *McpServer) runVersionedMigration(
 	return s.withConnection(ctx, func() (*mcpsdk.CallToolResult, error) {
 		version, err := parseVersionArgument(requestArguments(req), required)
 		if err != nil {
+			recordToolResult(toolName, version, err)
 			return nil, err
 		}
 		if err := run(ctx, version); err != nil {
+			recordToolResult(toolName, version, err)
 			return nil, fmt.Errorf("%w: %w", wrapErr, err)
 		}
+		recordToolResult(toolName, version, nil)
 		return textResult(successMessage), nil
 	})
+}
+
+func recordToolResult(tool, detail string, err error) {
+	activity := Activity{
+		Timestamp: time.Now().UTC(),
+		Actor:     "MCP",
+		Tool:      tool,
+		Detail:    detail,
+		Success:   err == nil,
+	}
+	if err != nil {
+		activity.Error = err.Error()
+	}
+	recordActivity(activity)
 }
 
 func requestArguments(req *mcpsdk.CallToolRequest) json.RawMessage {

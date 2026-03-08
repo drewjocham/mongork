@@ -103,6 +103,7 @@ func newRootCmd() *cobra.Command {
 		newUpCmd(), newDownCmd(), newForceCmd(), newUnlockCmd(),
 		newStatusCmd(), newOpslogCmd(),
 		NewOplogCmd(),
+		newUICmd(),
 		NewDBCmd(),
 		newParseCmd(), newValidateCmd(),
 		newCreateCmd(), newSchemaCmd(), NewMCPCmd(),
