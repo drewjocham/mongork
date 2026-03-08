@@ -42,15 +42,22 @@ Need more setup help? See [install.md](install.md).
 ### 3) Use the interactive Bubble Tea dashboard
 - Launch:
   - `mongo ui --resume-file .mongork.resume`
+  - `mongo ui --help-keys` (print keybindings without launching TUI)
 - Global controls:
   - `TAB` / `SHIFT+TAB` switch tabs
+  - `h` / `l` switch tabs
+  - `1` / `2` / `3` / `4` jump directly to a tab
+  - `R` force refresh now
+  - `?` toggle in-app hotkey help panel
   - `q` quits
 - Migrations tab:
-  - `↑/↓` select a migration
+  - `↑/↓` or `j/k` select a migration
+  - `g` / `G` jump to first/last migration
   - `r` starts rollback confirmation for selected applied migration
   - `y` confirms rollback, `n`/`esc` cancels
 - Live Stream tab:
-  - `↑/↓` select events
+  - `↑/↓` or `j/k` select events
+  - `g` / `G` jump to first/last event
   - `p` pause/resume stream updates
   - `i`/`u`/`d` toggle insert/update/delete filters
   - `enter` toggles JSON inspector modal
