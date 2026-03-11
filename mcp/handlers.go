@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/drewjocham/mongork/internal/migration"
+	"github.com/drewjocham/mongork/internal/observability"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
@@ -27,6 +29,14 @@ const (
 
 type versionArgs struct {
 	Version string `json:"version"`
+}
+
+func unmarshalArgs(req *mcpsdk.CallToolRequest, out any) error {
+	raw := requestArguments(req)
+	if len(raw) == 0 {
+		return nil
+	}
+	return json.Unmarshal(raw, out)
 }
 
 func (s *McpServer) registerTools() {
@@ -58,12 +68,160 @@ func (s *McpServer) registerTools() {
 		Description: "View collections and indexes.",
 		InputSchema: noArgsSchema(),
 	}, s.handleSchema)
+	s.server.AddTool(&mcpsdk.Tool{
+		Name:        "db_health",
+		Description: "Show database health report for operators.",
+		InputSchema: noArgsSchema(),
+	}, s.handleDBHealth)
+	s.server.AddTool(&mcpsdk.Tool{
+		Name:        "db_collections",
+		Description: "List collections in the active database.",
+		InputSchema: noArgsSchema(),
+	}, s.handleDBCollections)
+	s.server.AddTool(&mcpsdk.Tool{
+		Name:        "db_indexes",
+		Description: "List indexes (optionally filter by collection).",
+		InputSchema: objectSchema(map[string]any{
+			"collection": stringProperty("Optional collection filter"),
+		}),
+	}, s.handleDBIndexes)
+	s.server.AddTool(&mcpsdk.Tool{
+		Name:        "db_collection_stats",
+		Description: "Show collection storage and index size statistics.",
+		InputSchema: objectSchema(map[string]any{
+			"collection": stringProperty("Optional collection filter"),
+		}),
+	}, s.handleDBCollectionStats)
+	s.server.AddTool(&mcpsdk.Tool{
+		Name:        "db_current_ops",
+		Description: "List currently running MongoDB operations.",
+		InputSchema: objectSchema(map[string]any{
+			"limit": map[string]any{"type": "integer", "description": "Max operations to return (default 20, max 200)"},
+		}),
+	}, s.handleDBCurrentOps)
+	s.server.AddTool(&mcpsdk.Tool{
+		Name:        "db_users",
+		Description: "List Mongo users and roles.",
+		InputSchema: noArgsSchema(),
+	}, s.handleDBUsers)
+	s.server.AddTool(&mcpsdk.Tool{
+		Name:        "db_resource_summary",
+		Description: "Show resource usage summary from serverStatus.",
+		InputSchema: noArgsSchema(),
+	}, s.handleDBResourceSummary)
 }
 func (s *McpServer) handleStatus(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
 	return s.withConnection(ctx, func() (*mcpsdk.CallToolResult, error) {
 		result, err := s.statusTableResult(ctx)
 		recordToolResult("migration_status", "", err)
 		return result, err
+	})
+}
+
+func (s *McpServer) handleDBHealth(ctx context.Context, _ *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
+	return s.withConnection(ctx, func() (*mcpsdk.CallToolResult, error) {
+		report, err := observability.BuildHealthReport(ctx, s.client, s.db.Name())
+		recordToolResult("db_health", "", err)
+		if err != nil {
+			return nil, err
+		}
+		return jsonResult(report)
+	})
+}
+
+func (s *McpServer) handleDBCollections(
+	ctx context.Context,
+	_ *mcpsdk.CallToolRequest,
+) (*mcpsdk.CallToolResult, error) {
+	return s.withConnection(ctx, func() (*mcpsdk.CallToolResult, error) {
+		rows, err := observability.ListCollections(ctx, s.db)
+		recordToolResult("db_collections", "", err)
+		if err != nil {
+			return nil, err
+		}
+		return jsonResult(rows)
+	})
+}
+
+func (s *McpServer) handleDBIndexes(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
+	return s.withConnection(ctx, func() (*mcpsdk.CallToolResult, error) {
+		var args struct {
+			Collection string `json:"collection"`
+		}
+		_ = unmarshalArgs(req, &args)
+		rows, err := observability.ListIndexes(ctx, s.db, strings.TrimSpace(args.Collection))
+		recordToolResult("db_indexes", args.Collection, err)
+		if err != nil {
+			return nil, err
+		}
+		return jsonResult(rows)
+	})
+}
+
+func (s *McpServer) handleDBCollectionStats(
+	ctx context.Context,
+	req *mcpsdk.CallToolRequest,
+) (*mcpsdk.CallToolResult, error) {
+	return s.withConnection(ctx, func() (*mcpsdk.CallToolResult, error) {
+		var args struct {
+			Collection string `json:"collection"`
+		}
+		_ = unmarshalArgs(req, &args)
+		rows, err := observability.CollectionStatistics(ctx, s.db, strings.TrimSpace(args.Collection))
+		recordToolResult("db_collection_stats", args.Collection, err)
+		if err != nil {
+			return nil, err
+		}
+		return jsonResult(rows)
+	})
+}
+
+func (s *McpServer) handleDBCurrentOps(
+	ctx context.Context,
+	req *mcpsdk.CallToolRequest,
+) (*mcpsdk.CallToolResult, error) {
+	return s.withConnection(ctx, func() (*mcpsdk.CallToolResult, error) {
+		var args struct {
+			Limit int `json:"limit"`
+		}
+		_ = unmarshalArgs(req, &args)
+		if args.Limit <= 0 {
+			args.Limit = 20
+		}
+		if args.Limit > 200 {
+			args.Limit = 200
+		}
+		rows, err := observability.CurrentOperations(ctx, s.client, args.Limit)
+		recordToolResult("db_current_ops", fmt.Sprintf("limit=%d", args.Limit), err)
+		if err != nil {
+			return nil, err
+		}
+		return jsonResult(rows)
+	})
+}
+
+func (s *McpServer) handleDBUsers(ctx context.Context, _ *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
+	return s.withConnection(ctx, func() (*mcpsdk.CallToolResult, error) {
+		rows, err := observability.Users(ctx, s.client)
+		recordToolResult("db_users", "", err)
+		if err != nil {
+			return nil, err
+		}
+		return jsonResult(rows)
+	})
+}
+
+func (s *McpServer) handleDBResourceSummary(
+	ctx context.Context,
+	_ *mcpsdk.CallToolRequest,
+) (*mcpsdk.CallToolResult, error) {
+	return s.withConnection(ctx, func() (*mcpsdk.CallToolResult, error) {
+		summary, err := observability.BuildResourceSummary(ctx, s.client)
+		recordToolResult("db_resource_summary", "", err)
+		if err != nil {
+			return nil, err
+		}
+		return jsonResult(summary)
 	})
 }
 
@@ -143,6 +301,16 @@ func textResult(text string) *mcpsdk.CallToolResult {
 	return &mcpsdk.CallToolResult{
 		Content: []mcpsdk.Content{&mcpsdk.TextContent{Text: text}},
 	}
+}
+
+func jsonResult(v any) (*mcpsdk.CallToolResult, error) {
+	var b bytes.Buffer
+	enc := json.NewEncoder(&b)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(v); err != nil {
+		return nil, err
+	}
+	return textResult(strings.TrimSpace(b.String())), nil
 }
 
 func (s *McpServer) withConnection(

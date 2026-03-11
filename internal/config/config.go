@@ -79,6 +79,9 @@ func (c *Config) GetConnectionString() string {
 	if err != nil {
 		return c.Mongo.URL
 	}
+	if u.Path == "" {
+		u.Path = "/"
+	}
 
 	if c.Mongo.Username != "" && u.User == nil {
 		u.User = url.UserPassword(c.Mongo.Username, c.Mongo.Password)

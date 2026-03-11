@@ -11,6 +11,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/drewjocham/mongork/internal/migration"
+	"github.com/drewjocham/mongork/internal/observability"
 	"github.com/drewjocham/mongork/internal/schema/diff"
 	"github.com/drewjocham/mongork/mcp"
 	"github.com/spf13/cobra"
@@ -23,6 +24,27 @@ const (
 	uiTickEvery        = 1 * time.Second
 	lockStaleThreshold = 30 * time.Second
 	maxStreamEvents    = 80
+)
+
+var (
+	uiHeaderStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("230")).
+			Background(lipgloss.Color("63")).
+			Padding(0, 1)
+	uiMetaStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
+	uiPanelStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("62")).
+			Padding(0, 1)
+	uiFooterStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("245")).
+			BorderTop(true).
+			BorderForeground(lipgloss.Color("240")).
+			Padding(0, 1)
+	uiErrorStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("203")).Bold(true)
+	uiCardTitleStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("110"))
+	uiCardValueStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("230"))
 )
 
 func newUICmd() *cobra.Command {
@@ -52,13 +74,119 @@ func newUICmd() *cobra.Command {
 	return cmd
 }
 
+func (m uiModel) viewOps() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "Sort: ops=%s • collections=%s\n\n", m.opsSortLabel(), m.collectionSortLabel())
+	summary := lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		renderCard("Connections", fmt.Sprintf("%d / %d", m.resource.ConnectionsCurrent, m.resource.ConnectionsAvailable)),
+		" ",
+		renderCard("Resident MB", fmt.Sprintf("%.1f", m.resource.ResidentMemoryMB)),
+		" ",
+		renderCard("Virtual MB", fmt.Sprintf("%.1f", m.resource.VirtualMemoryMB)),
+		" ",
+		renderCard("Active Ops", fmt.Sprintf("%d", len(m.currentOps))),
+	)
+	b.WriteString(summary)
+	b.WriteString("\n\nCurrent Ops:\n")
+	sortedOps := m.sortedCurrentOps()
+	if len(sortedOps) == 0 {
+		b.WriteString("  no active ops\n")
+	} else {
+		for _, op := range sortedOps {
+			fmt.Fprintf(
+				&b,
+				"  [%ds] %s %s client=%s\n",
+				op.RunningSecs,
+				op.Operation,
+				truncate(op.Namespace, 34),
+				truncate(op.Client, 18),
+			)
+			if op.Description != "" {
+				fmt.Fprintf(&b, "      %s\n", truncate(op.Description, 80))
+			}
+		}
+	}
+
+	b.WriteString("\nTop Collection Growth Deltas:\n")
+	growthPairs := m.sortedGrowthSignals(8)
+	if len(growthPairs) == 0 {
+		b.WriteString("  no growth deltas yet (waiting for next refresh)\n")
+	} else {
+		for _, g := range growthPairs {
+			sign := "+"
+			if g.Delta < 0 {
+				sign = ""
+			}
+			fmt.Fprintf(&b, "  %-28s %s%d docs\n", truncate(g.Collection, 28), sign, g.Delta)
+		}
+	}
+
+	b.WriteString("\nTop Collection Counts:\n")
+	if len(m.collStats) == 0 {
+		b.WriteString("  no collection stats available\n")
+		return b.String()
+	}
+	stats := m.sortedCollectionStats()
+	limit := 8
+	if len(stats) < limit {
+		limit = len(stats)
+	}
+	for i := 0; i < limit; i++ {
+		s := stats[i]
+		fmt.Fprintf(&b, "  %-28s count=%d size=%dB idx=%dB\n", truncate(s.Collection, 28), s.Count, s.SizeBytes, s.IndexBytes)
+	}
+	return b.String()
+}
+func (m uiModel) renderHeader() string {
+	title := uiHeaderStyle.Render("mongork • operations console")
+	subtitle := uiMetaStyle.Render(
+		fmt.Sprintf(
+			"tab: %s • %s",
+			m.tabs[m.activeTab],
+			time.Now().Format("2006-01-02 15:04:05"),
+		),
+	)
+	tabs := renderTabs(m.tabs, m.activeTab)
+	return lipgloss.JoinVertical(lipgloss.Left, title, subtitle, tabs)
+}
+
+func (m uiModel) renderFooter() string {
+	parts := []string{"TAB/SHIFT+TAB or h/l or 1-5", "q quit", "? hotkeys", "R refresh"}
+	switch m.activeTab {
+	case 0:
+		parts = append(parts, "↑/↓ select", "r rollback", "y/n confirm")
+	case 1:
+		parts = append(parts, "↑/↓ select", "p pause", "i/u/d filter", "enter inspector")
+	case 3:
+		parts = append(parts, "K set kill switch")
+	case 4:
+		parts = append(parts, "ops focus view", "o cycle op sort", "c cycle collection sort")
+	}
+	if m.actionNote != "" {
+		parts = append(parts, m.actionNote)
+	}
+	if m.err != nil {
+		parts = append(parts, uiErrorStyle.Render("error: "+m.err.Error()))
+	}
+	return uiFooterStyle.Render(strings.Join(parts, " • "))
+}
+
+func renderCard(title string, value string) string {
+	return uiPanelStyle.
+		BorderForeground(lipgloss.Color("240")).
+		Render(uiCardTitleStyle.Render(title) + "\n" + uiCardValueStyle.Render(value))
+}
+
 func uiHotkeysHelpText() string {
 	return strings.Join([]string{
 		"Hotkeys",
-		"  Global: q quit • ? toggle help • R refresh • TAB/SHIFT+TAB switch tabs • h/l switch tabs • 1..4 jump tab",
+		"  Global: q quit • ? toggle help • R refresh • TAB/SHIFT+TAB switch tabs • h/l switch tabs • 1..5 jump tab",
 		"  List nav: ↑/↓ or j/k move • g/G jump top/bottom",
 		"  Migrations: r rollback selected applied migration • y confirm • n/esc cancel",
 		"  Live Stream: p pause/resume • i/u/d toggle op filters • enter toggle inspector",
+		"  Ops: operator telemetry dashboard (resource, active ops, growth deltas)",
+		"       o cycle op sort • c cycle collection sort",
 		"  Playbook: K set kill switch (stop signal)",
 	}, "\n")
 }
@@ -75,6 +203,9 @@ type uiRefreshMsg struct {
 	mcpEvents   []mcp.Activity
 	schemaDiffs []diff.Diff
 	playbook    playbookState
+	resource    observability.ResourceSummary
+	currentOps  []observability.CurrentOpInfo
+	collStats   []observability.CollectionStats
 	resumeToken string
 	resumeAt    time.Time
 	err         error
@@ -125,23 +256,35 @@ type uiModel struct {
 	mcpEvents   []mcp.Activity
 	schemaDiffs []diff.Diff
 	playbook    playbookState
+	resource    observability.ResourceSummary
+	currentOps  []observability.CurrentOpInfo
+	collStats   []observability.CollectionStats
 
 	resumeToken string
 	resumeAt    time.Time
 	showHelp    bool
 	err         error
+
+	lastCollectionCounts map[string]int64
+	collectionGrowth     map[string]int64
+	opsSortMode          int
+	collectionSortMode   int
 }
 
 func newUIModel(ctx context.Context, s *Services, resumeFile string) uiModel {
 	return uiModel{
-		ctx:         ctx,
-		services:    s,
-		resumeFile:  resumeFile,
-		tabs:        []string{"Migrations", "Live Stream", "MCP Activity", "Playbook"},
-		driftByVer:  map[string]bool{},
-		epsRing:     make([]int, 30),
-		opFilters:   map[string]bool{"i": true, "u": true, "d": true},
-		lastEpsTick: time.Now(),
+		ctx:                  ctx,
+		services:             s,
+		resumeFile:           resumeFile,
+		tabs:                 []string{"Migrations", "Live Stream", "MCP Activity", "Playbook", "Ops"},
+		driftByVer:           map[string]bool{},
+		epsRing:              make([]int, 30),
+		opFilters:            map[string]bool{"i": true, "u": true, "d": true},
+		lastEpsTick:          time.Now(),
+		lastCollectionCounts: map[string]int64{},
+		collectionGrowth:     map[string]int64{},
+		opsSortMode:          0,
+		collectionSortMode:   0,
 	}
 }
 
@@ -218,6 +361,15 @@ func (m uiModel) refreshCmd() tea.Cmd {
 
 		msg.mcpEvents = mcp.RecentActivity(80)
 		msg.playbook = readPlaybookState(m.ctx, db)
+		if resource, e3 := observability.BuildResourceSummary(m.ctx, client); e3 == nil {
+			msg.resource = resource
+		}
+		if currentOps, e4 := observability.CurrentOperations(m.ctx, client, 8); e4 == nil {
+			msg.currentOps = currentOps
+		}
+		if collStats, e5 := observability.CollectionStatistics(m.ctx, db, ""); e5 == nil {
+			msg.collStats = collStats
+		}
 		msg.resumeToken, msg.resumeAt = readResumeToken(m.resumeFile)
 		return msg
 	}
@@ -245,6 +397,22 @@ func (m uiModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		m.mcpEvents = msg.mcpEvents
 		m.schemaDiffs = msg.schemaDiffs
 		m.playbook = msg.playbook
+		m.resource = msg.resource
+		m.currentOps = msg.currentOps
+		m.collStats = msg.collStats
+		if len(msg.collStats) > 0 {
+			growth := map[string]int64{}
+			next := map[string]int64{}
+			for _, s := range msg.collStats {
+				next[s.Collection] = s.Count
+				prev, ok := m.lastCollectionCounts[s.Collection]
+				if ok {
+					growth[s.Collection] = s.Count - prev
+				}
+			}
+			m.collectionGrowth = growth
+			m.lastCollectionCounts = next
+		}
 		m.driftByVer = map[string]bool{}
 		for _, drift := range msg.drifts {
 			m.driftByVer[drift.Version] = drift.DriftDetected
@@ -287,7 +455,7 @@ func (m uiModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case "?":
 			m.showHelp = !m.showHelp
 			return m, nil
-		case "1", "2", "3", "4":
+		case "1", "2", "3", "4", "5":
 			m.activeTab = int(msg.String()[0] - '1')
 			if m.activeTab >= len(m.tabs) {
 				m.activeTab = len(m.tabs) - 1
@@ -397,13 +565,21 @@ func (m uiModel) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			if m.activeTab == 3 {
 				_ = setStopSignal(m.ctx, m.services.MongoClient.Database(m.services.Config.Mongo.Database), true)
 			}
+		case "o", "O":
+			if m.activeTab == 4 {
+				m.cycleOpSort()
+			}
+		case "c", "C":
+			if m.activeTab == 4 {
+				m.cycleCollectionSort()
+			}
 		}
 	}
 	return m, nil
 }
 
 func (m uiModel) View() string {
-	header := renderTabs(m.tabs, m.activeTab)
+	header := m.renderHeader()
 	body := ""
 	switch m.activeTab {
 	case 0:
@@ -414,21 +590,12 @@ func (m uiModel) View() string {
 		body = m.viewMCP()
 	case 3:
 		body = m.viewPlaybook()
+	case 4:
+		body = m.viewOps()
 	}
-	footer := "TAB/SHIFT+TAB or h/l or 1-4 tabs • q quit • ? hotkeys • R refresh"
-	switch m.activeTab {
-	case 0:
-		footer += " • ↑/↓ select • r rollback selected • y/n confirm"
-	case 1:
-		footer += " • ↑/↓ select • p pause • i/u/d filter • enter inspector"
-	}
-	if m.actionNote != "" {
-		footer += " • " + m.actionNote
-	}
-	if m.err != nil {
-		footer += " • error: " + m.err.Error()
-	}
-	out := lipgloss.JoinVertical(lipgloss.Left, header, body, footer)
+	content := uiPanelStyle.Render(body)
+	footer := m.renderFooter()
+	out := lipgloss.JoinVertical(lipgloss.Left, header, content, footer)
 	if m.showHelp {
 		help := lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
@@ -440,8 +607,94 @@ func (m uiModel) View() string {
 	return out
 }
 
+func (m *uiModel) cycleOpSort() {
+	m.opsSortMode = (m.opsSortMode + 1) % 3
+}
+
+func (m *uiModel) cycleCollectionSort() {
+	m.collectionSortMode = (m.collectionSortMode + 1) % 3
+}
+
+func (m uiModel) opsSortLabel() string {
+	switch m.opsSortMode {
+	case 1:
+		return "namespace"
+	case 2:
+		return "runtime asc"
+	default:
+		return "runtime desc"
+	}
+}
+
+func (m uiModel) collectionSortLabel() string {
+	switch m.collectionSortMode {
+	case 1:
+		return "size bytes"
+	case 2:
+		return "index bytes"
+	default:
+		return "count"
+	}
+}
+
+func (m uiModel) sortedCurrentOps() []observability.CurrentOpInfo {
+	ops := append([]observability.CurrentOpInfo(nil), m.currentOps...)
+	sort.Slice(ops, func(i, j int) bool {
+		switch m.opsSortMode {
+		case 1:
+			if ops[i].Namespace == ops[j].Namespace {
+				return ops[i].RunningSecs > ops[j].RunningSecs
+			}
+			return ops[i].Namespace < ops[j].Namespace
+		case 2:
+			return ops[i].RunningSecs < ops[j].RunningSecs
+		default:
+			return ops[i].RunningSecs > ops[j].RunningSecs
+		}
+	})
+	return ops
+}
+
+func (m uiModel) sortedCollectionStats() []observability.CollectionStats {
+	stats := append([]observability.CollectionStats(nil), m.collStats...)
+	sort.Slice(stats, func(i, j int) bool {
+		switch m.collectionSortMode {
+		case 1:
+			return stats[i].SizeBytes > stats[j].SizeBytes
+		case 2:
+			return stats[i].IndexBytes > stats[j].IndexBytes
+		default:
+			return stats[i].Count > stats[j].Count
+		}
+	})
+	return stats
+}
+
 func (m uiModel) viewMigrations() string {
 	var b strings.Builder
+	appliedCount := 0
+	pendingCount := 0
+	driftCount := 0
+	for _, st := range m.status {
+		if st.Applied {
+			appliedCount++
+		} else {
+			pendingCount++
+		}
+		if m.driftByVer[st.Version] {
+			driftCount++
+		}
+	}
+	summaryRow := lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		renderCard("Applied", fmt.Sprintf("%d", appliedCount)),
+		" ",
+		renderCard("Pending", fmt.Sprintf("%d", pendingCount)),
+		" ",
+		renderCard("Checksum Drift", fmt.Sprintf("%d", driftCount)),
+	)
+	b.WriteString(summaryRow)
+	b.WriteString("\n")
 	b.WriteString(renderLockStatus(m.lock))
 	b.WriteString("\n")
 	b.WriteString("Dry-Run Preview: ")
@@ -511,8 +764,60 @@ func (m uiModel) viewLiveStream() string {
 	if m.resumeToken != "" {
 		fmt.Fprintf(&b, "Resume token (%s): %s\n", m.resumeAt.Format(time.RFC3339), truncate(m.resumeToken, 80))
 	}
-	b.WriteString("\nEvents:\n")
 	filtered := m.filteredStreamEvents()
+	var inserts, updates, deletes int
+	for _, ev := range filtered {
+		switch ev.Op {
+		case "i":
+			inserts++
+		case "u":
+			updates++
+		case "d":
+			deletes++
+		}
+	}
+	counters := lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		renderCard("Events", fmt.Sprintf("%d", len(filtered))),
+		" ",
+		renderCard("Insert/Update/Delete", fmt.Sprintf("%d / %d / %d", inserts, updates, deletes)),
+		" ",
+		renderCard("Connections", fmt.Sprintf("%d / %d", m.resource.ConnectionsCurrent, m.resource.ConnectionsAvailable)),
+		" ",
+		renderCard("Resident MB", fmt.Sprintf("%.1f", m.resource.ResidentMemoryMB)),
+	)
+	b.WriteString(counters)
+	b.WriteString("\n")
+	b.WriteString("\nTop Growth Signals:\n")
+	growthPairs := m.sortedGrowthSignals(5)
+	if len(growthPairs) == 0 {
+		b.WriteString("  no growth deltas yet (waiting for next refresh)\n")
+	} else {
+		for _, g := range growthPairs {
+			sign := "+"
+			if g.Delta < 0 {
+				sign = ""
+			}
+			fmt.Fprintf(&b, "  %s %s%d docs\n", g.Collection, sign, g.Delta)
+		}
+	}
+
+	b.WriteString("\nCurrent Ops Snapshot:\n")
+	if len(m.currentOps) == 0 {
+		b.WriteString("  no active ops\n")
+	} else {
+		for _, op := range m.currentOps {
+			fmt.Fprintf(
+				&b,
+				"  [%ss] %s %s (%s)\n",
+				fmt.Sprintf("%d", op.RunningSecs),
+				op.Operation,
+				truncate(op.Namespace, 28),
+				truncate(op.Description, 34),
+			)
+		}
+	}
+	b.WriteString("\nEvents:\n")
 	for i, ev := range filtered {
 		cursor := " "
 		if i == m.selectedIdx {
@@ -539,7 +844,24 @@ func (m uiModel) viewLiveStream() string {
 
 func (m uiModel) viewMCP() string {
 	var b strings.Builder
-	b.WriteString("AI Activity Log\n")
+	var okCount, errCount int
+	for _, e := range m.mcpEvents {
+		if e.Success {
+			okCount++
+		} else {
+			errCount++
+		}
+	}
+	row := lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		renderCard("MCP Calls", fmt.Sprintf("%d", len(m.mcpEvents))),
+		" ",
+		renderCard("Success/Failure", fmt.Sprintf("%d / %d", okCount, errCount)),
+		" ",
+		renderCard("Schema Drift Entries", fmt.Sprintf("%d", len(m.schemaDiffs))),
+	)
+	b.WriteString(row)
+	b.WriteString("\nAI Activity Log\n")
 	for _, e := range m.mcpEvents {
 		status := "✅"
 		if !e.Success {
@@ -603,11 +925,20 @@ func (m uiModel) viewPlaybook() string {
 func renderTabs(tabs []string, active int) string {
 	items := make([]string, 0, len(tabs))
 	for i, tab := range tabs {
-		style := lipgloss.NewStyle().Padding(0, 1).Foreground(lipgloss.Color("245"))
+		label := fmt.Sprintf("%d. %s", i+1, tab)
+		style := lipgloss.NewStyle().
+			Padding(0, 1).
+			Foreground(lipgloss.Color("245")).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("240"))
 		if i == active {
-			style = style.Bold(true).Foreground(lipgloss.Color("229")).Background(lipgloss.Color("62"))
+			style = style.
+				Bold(true).
+				Foreground(lipgloss.Color("229")).
+				Background(lipgloss.Color("62")).
+				BorderForeground(lipgloss.Color("62"))
 		}
-		items = append(items, style.Render(tab))
+		items = append(items, style.Render(label))
 	}
 	return strings.Join(items, " ")
 }
@@ -817,4 +1148,37 @@ func (m uiModel) renderFilterBadge(op string) string {
 
 func (m uiModel) hotkeysHelp() string {
 	return uiHotkeysHelpText()
+}
+
+type growthSignal struct {
+	Collection string
+	Delta      int64
+}
+
+func (m uiModel) sortedGrowthSignals(limit int) []growthSignal {
+	if limit <= 0 {
+		limit = 5
+	}
+	out := make([]growthSignal, 0, len(m.collectionGrowth))
+	for name, delta := range m.collectionGrowth {
+		out = append(out, growthSignal{Collection: name, Delta: delta})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		ai := out[i].Delta
+		if ai < 0 {
+			ai = -ai
+		}
+		aj := out[j].Delta
+		if aj < 0 {
+			aj = -aj
+		}
+		if ai == aj {
+			return out[i].Collection < out[j].Collection
+		}
+		return ai > aj
+	})
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	return out
 }

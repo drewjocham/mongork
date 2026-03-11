@@ -7,30 +7,29 @@ import (
 	"io"
 	"strings"
 	"text/tabwriter"
-	"time"
 
+	"github.com/drewjocham/mongork/internal/jsonutil"
 	"github.com/drewjocham/mongork/internal/migration"
-	"github.com/dustin/go-humanize"
+	"github.com/drewjocham/mongork/internal/observability"
 	"github.com/spf13/cobra"
-	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 var ErrFailedToMarshalJSON = errors.New("failed to marshal json")
 
-type HealthReport struct {
-	Database    string            `json:"database"`
-	Role        string            `json:"role"`
-	OplogWindow string            `json:"oplog_window"`
-	OplogSize   string            `json:"oplog_size"`
-	Connections string            `json:"connections"`
-	Lag         map[string]string `json:"lag,omitempty"`
-	Warnings    []string          `json:"warnings,omitempty"`
-}
+type HealthReport = observability.HealthReport
 
 func NewDBCmd() *cobra.Command {
 	cmd := &cobra.Command{Use: "db", Short: "Database utilities"}
-	cmd.AddCommand(newDBHealthCmd())
+	cmd.AddCommand(
+		newDBHealthCmd(),
+		newDBCollectionsCmd(),
+		newDBIndexesCmd(),
+		newDBStatsCmd(),
+		newDBCurrentOpsCmd(),
+		newDBUsersCmd(),
+		newDBResourceCmd(),
+	)
 	return cmd
 }
 
@@ -50,12 +49,12 @@ func newDBHealthCmd() *cobra.Command {
 			}
 
 			if strings.ToLower(output) == "json" {
-				data, err := bson.MarshalExtJSONIndent(report, true, false, "", "  ")
-				if err != nil {
+				enc := jsonutil.NewEncoder(cmd.OutOrStdout())
+				enc.SetIndent("", "  ")
+				if err := enc.Encode(report); err != nil {
 					return fmt.Errorf("%w: %w", ErrFailedToMarshalJSON, err)
 				}
-				_, err = cmd.OutOrStdout().Write(data)
-				return err
+				return nil
 			}
 
 			RenderHealthTable(cmd.OutOrStdout(), report)
@@ -67,47 +66,7 @@ func newDBHealthCmd() *cobra.Command {
 }
 
 func buildReport(ctx context.Context, client *mongo.Client, dbName string) (HealthReport, error) {
-	var stats bson.M
-	if err := client.
-		Database("admin").
-		RunCommand(ctx, bson.D{{Key: "serverStatus", Value: 1}}).
-		Decode(&stats); err != nil {
-		return HealthReport{}, err
-	}
-	report := HealthReport{
-		Database: dbName,
-		Lag:      make(map[string]string),
-	}
-
-	if conn, ok := stats["connections"].(bson.M); ok {
-		report.Connections = fmt.Sprintf("%v / %v", conn["current"], conn["available"])
-	}
-
-	if oplog, ok := stats["oplog"].(bson.M); ok {
-		var window float64
-		switch v := oplog["windowSeconds"].(type) {
-		case float64:
-			window = v
-		case int32:
-			window = float64(v)
-		case int64:
-			window = float64(v)
-		}
-
-		if window > 0 {
-			report.OplogWindow = (time.Duration(window) * time.Second).String()
-			if window < 21600 {
-				report.Warnings = append(report.Warnings, "Oplog window is under 6 hours")
-			}
-		}
-
-		// Size is usually int32/int64 MB
-		if size, ok := oplog["logSizeMB"].(int32); ok {
-			report.OplogSize = humanize.Bytes(uint64(size) * 1024 * 1024)
-		}
-	}
-
-	return report, nil
+	return observability.BuildHealthReport(ctx, client, dbName)
 }
 
 func RenderHealthTable(w io.Writer, r HealthReport) {

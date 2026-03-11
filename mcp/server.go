@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/drewjocham/mongork/internal/config"
 	migrate "github.com/drewjocham/mongork/internal/migration"
@@ -85,6 +88,35 @@ func (s *McpServer) ensureConnection(ctx context.Context) error {
 }
 
 func (s *McpServer) Start() error {
+	return s.StartStdio()
+}
+
+func (s *McpServer) StartStdio() error {
+	return s.runWithSignalContext(func(ctx context.Context) error {
+		s.logger.Info("starting mcp server", "transport", "stdio")
+		return s.ServeStdio(ctx, os.Stdin, os.Stdout)
+	})
+}
+
+func (s *McpServer) StartHTTP(listenAddr string, basePath string) error {
+	if strings.TrimSpace(listenAddr) == "" {
+		listenAddr = "0.0.0.0:8080"
+	}
+	basePath = strings.TrimSpace(basePath)
+	if basePath == "" {
+		basePath = "/mcp"
+	}
+	if !strings.HasPrefix(basePath, "/") {
+		basePath = "/" + basePath
+	}
+
+	return s.runWithSignalContext(func(ctx context.Context) error {
+		s.logger.Info("starting mcp server", "transport", "http", "listen", listenAddr, "base_path", basePath)
+		return s.ServeHTTP(ctx, listenAddr, basePath)
+	})
+}
+
+func (s *McpServer) runWithSignalContext(run func(context.Context) error) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 
 	s.mu.Lock()
@@ -102,16 +134,48 @@ func (s *McpServer) Start() error {
 		s.cancel = nil
 		s.mu.Unlock()
 	}()
-
-	s.logger.Info("starting mcp server")
-	return s.Serve(ctx, os.Stdin, os.Stdout)
+	return run(ctx)
 }
 
 func (s *McpServer) Serve(ctx context.Context, r io.Reader, w io.Writer) error {
+	return s.ServeStdio(ctx, r, w)
+}
+
+func (s *McpServer) ServeStdio(ctx context.Context, r io.Reader, w io.Writer) error {
 	return s.server.Run(ctx, &mcpsdk.IOTransport{
 		Reader: io.NopCloser(r),
 		Writer: nopWriteCloser{Writer: w},
 	})
+}
+
+func (s *McpServer) ServeHTTP(ctx context.Context, listenAddr string, basePath string) error {
+	handler := mcpsdk.NewStreamableHTTPHandler(func(_ *http.Request) *mcpsdk.Server {
+		return s.server
+	}, &mcpsdk.StreamableHTTPOptions{})
+	mux := http.NewServeMux()
+	mux.Handle(basePath, handler)
+
+	httpServer := &http.Server{
+		Addr:    listenAddr,
+		Handler: mux,
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- httpServer.ListenAndServe()
+	}()
+
+	select {
+	case <-ctx.Done():
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		return httpServer.Shutdown(shutdownCtx)
+	case err := <-errCh:
+		if errors.Is(err, http.ErrServerClosed) {
+			return nil
+		}
+		return err
+	}
 }
 
 func (s *McpServer) Close(ctx context.Context) error {

@@ -25,17 +25,23 @@ var (
 
 func NewMCPCmd() *cobra.Command {
 	var withExamples bool
+	var transport string
+	var listenAddr string
+	var basePath string
 
 	mcpCmd := &cobra.Command{
 		Use:   "mcp",
 		Short: "Start MCP server for AI assistant integration",
-		Long:  "Starts the MCP server using stdin/stdout. Logs are redirected to stderr to avoid protocol corruption.",
+		Long:  "Starts the MCP server using either stdio (default) or streamable HTTP transport.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runMCP(cmd, withExamples)
+			return runMCP(cmd, withExamples, transport, listenAddr, basePath)
 		},
 	}
 
 	mcpCmd.Flags().BoolVar(&withExamples, "with-examples", false, "register example migrations on startup")
+	mcpCmd.Flags().StringVar(&transport, "transport", "stdio", "MCP transport to use: stdio or http")
+	mcpCmd.Flags().StringVar(&listenAddr, "listen", "0.0.0.0:8080", "Listen address for HTTP transport")
+	mcpCmd.Flags().StringVar(&basePath, "base-path", "/mcp", "HTTP base path for streamable MCP endpoint")
 
 	mcpCmd.AddCommand(&cobra.Command{
 		Use:   "config",
@@ -49,7 +55,7 @@ func NewMCPCmd() *cobra.Command {
 	return mcpCmd
 }
 
-func runMCP(cmd *cobra.Command, withExamples bool) error {
+func runMCP(cmd *cobra.Command, withExamples bool, transport string, listenAddr string, basePath string) error {
 	logger, cleanup, err := logging.New(slog.LevelInfo, "")
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrFailedToInitLogger, err)
@@ -77,10 +83,19 @@ func runMCP(cmd *cobra.Command, withExamples bool) error {
 	}
 	defer server.Close(cmd.Context())
 
-	zap.S().Infow("Starting MCP server", "pid", os.Getpid())
+	zap.S().Infow("Starting MCP server", "pid", os.Getpid(), "transport", transport)
 
-	if err := server.Start(); err != nil && !isClosingError(err) {
-		return fmt.Errorf("%w: %w", ErrMCPServerFailure, err)
+	switch strings.ToLower(strings.TrimSpace(transport)) {
+	case "", "stdio":
+		if err := server.StartStdio(); err != nil && !isClosingError(err) {
+			return fmt.Errorf("%w: %w", ErrMCPServerFailure, err)
+		}
+	case "http":
+		if err := server.StartHTTP(listenAddr, basePath); err != nil {
+			return fmt.Errorf("%w: %w", ErrMCPServerFailure, err)
+		}
+	default:
+		return fmt.Errorf("%w: unsupported transport %q", ErrMCPServerFailure, transport)
 	}
 
 	zap.S().Info("MCP server session ended")

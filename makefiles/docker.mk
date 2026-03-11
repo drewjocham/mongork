@@ -7,10 +7,7 @@ include $(MAKEFILES_DIR)/variables/vars.mk
 DOCKER_TAG ?= v0.1.0
 COMPOSE_CMD ?= docker compose
 
-.PHONY: help docker-build docker-up up-build docker-down start security-scan db-up db-down
-
-help:
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+.PHONY: docker-build docker-up up-build docker-down start security-scan db-up db-down up down mcp-run cli-run mcp-http-up
 
 docker-build:
 	@echo "$(GREEN)Building Docker image $(DOCKER_IMAGE):$(DOCKER_TAG)...$(NC)"
@@ -21,11 +18,23 @@ up-build: docker-build
 	$(COMPOSE_CMD) --profile build up -d
 
 up:
-	@echo "$(GREEN)Starting services...$(NC)"
-	$(COMPOSE_CMD) --profile build service up -d --remove-orphans
+	@echo "$(GREEN)Starting persistent services (mongo-db, mongork-mcp)...$(NC)"
+	$(COMPOSE_CMD) up -d --build --remove-orphans mongo-db mongork-mcp
 down:
 	@echo "$(YELLOW)Stopping services...$(NC)"
-	$(COMPOSE_CMD) down --remove-orphans -v
+	$(COMPOSE_CMD) down --remove-orphans
+
+cli-run:
+	@echo "$(GREEN)Running CLI container interactively...$(NC)"
+	$(COMPOSE_CMD) run --rm mongork-cli
+
+mcp-run:
+	@echo "$(GREEN)Running MCP container over stdio (interactive)...$(NC)"
+	$(COMPOSE_CMD) run --rm -i mongork-mcp --transport stdio
+
+mcp-http-up:
+	@echo "$(GREEN)Starting MCP HTTP server container...$(NC)"
+	$(COMPOSE_CMD) up -d --build --remove-orphans mongork-mcp
 
 start:
 	@echo "$(GREEN)Running Docker container manually...$(NC)"
