@@ -15,7 +15,7 @@ services:
       dockerfile: ./docker/Dockerfile.local
     environment:
       - MONGO_URL=${MONGO_URL:-mongodb://mongo-mcp:27017}
-      - MONGO_DATABASE=${MONGO_DATABASE:-test_db}test_db
+      - MONGO_DATABASE=${MONGO_DATABASE:-test_db}
       - MIGRATIONS_PATH=${MIGRATIONS_PATH:-./app/migrations}
       - MIGRATIONS_COLLECTION=${MIGRATIONS_COLLECTION:-schema_migrations}
       - MONGO_TIMEOUT=30
@@ -36,11 +36,12 @@ services:
       context: ..
       dockerfile: ./docker/Dockerfile.mcp
     environment:
-      - MONGO_URL=mongodb://admin:password@mongo-db:27017/test_db?authSource=admin
-      - MONGO_DATABASE=${MONGO_DATABASE:-test_db}test_db
+      - MONGO_URL=${MONGO_URL:-mongodb://mongo-mcp:27017}
+      - MONGO_DATABASE=${MONGO_DATABASE:-test_db}
       - MIGRATIONS_PATH=${MIGRATIONS_PATH:-./app/migrations}
       - MIGRATIONS_COLLECTION=${MIGRATIONS_COLLECTION:-schema_migrations}
       - MONGO_TIMEOUT=${MONGO_TIMEOUT:-30}
+    command: ["--transport", "http", "--listen", "0.0.0.0:8080", "--base-path", "/mcp"]
     ports:
       - "8080:8080"
     volumes:

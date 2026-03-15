@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/drewjocham/mongork/internal/cli"
+	_ "github.com/drewjocham/mongork/migrations"
 )
 
 func main() {
