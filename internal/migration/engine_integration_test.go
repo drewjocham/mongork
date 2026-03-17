@@ -62,7 +62,7 @@ func TestEnginePlanAndApplyIntegration(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(suite.DB, suite.CollName("schema_migrations"), migrations)
+	engine := NewEngineWithMigrations(suite.DB, suite.CollName("schema_migrations"), migrations)
 
 	ctx := context.Background()
 	plan, err := engine.Plan(ctx, DirectionUp, "")
@@ -162,7 +162,7 @@ func TestEngineChecksumMismatchIntegration(t *testing.T) {
 			return err
 		},
 	}
-	engine := NewEngine(suite.DB, suite.CollName("schema_migrations"), map[string]Migration{mig.version: mig})
+	engine := NewEngineWithMigrations(suite.DB, suite.CollName("schema_migrations"), map[string]Migration{mig.version: mig})
 	ctx := context.Background()
 
 	if err := engine.Up(ctx, ""); err != nil {
@@ -184,7 +184,7 @@ func TestEngineLockContentionIntegration(t *testing.T) {
 	suite := newMongoSuite(t)
 	defer suite.Close()
 
-	engine := NewEngine(suite.DB, suite.CollName("schema_migrations"), map[string]Migration{})
+	engine := NewEngineWithMigrations(suite.DB, suite.CollName("schema_migrations"), map[string]Migration{})
 	ctx := context.Background()
 
 	lockColl := suite.DB.Collection(collLock)
@@ -223,7 +223,7 @@ func TestEngineTransactionRollbackIntegration(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(suite.DB, suite.CollName("schema_migrations"), map[string]Migration{mig.version: mig})
+	engine := NewEngineWithMigrations(suite.DB, suite.CollName("schema_migrations"), map[string]Migration{mig.version: mig})
 	ctx := context.Background()
 
 	if err := engine.Up(ctx, ""); err == nil {
@@ -259,7 +259,7 @@ func TestEngineContextCancellationIntegration(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(suite.DB, suite.CollName("schema_migrations"), map[string]Migration{mig.version: mig})
+	engine := NewEngineWithMigrations(suite.DB, suite.CollName("schema_migrations"), map[string]Migration{mig.version: mig})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
@@ -294,7 +294,7 @@ func TestEngineIdempotentUpIntegration(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(suite.DB, suite.CollName("schema_migrations"), map[string]Migration{mig.version: mig})
+	engine := NewEngineWithMigrations(suite.DB, suite.CollName("schema_migrations"), map[string]Migration{mig.version: mig})
 	if err := engine.Up(context.Background(), ""); err != nil {
 		t.Fatalf("expected idempotent up, got %v", err)
 	}
@@ -385,7 +385,7 @@ func TestEnginePlanTableDrivenIntegration(t *testing.T) {
 				"20240102_enable_flag": scriptMigration{version: "20240102_enable_flag"},
 				"20240103_add_index":   scriptMigration{version: "20240103_add_index"},
 			}
-			engine := NewEngine(suite.DB, suite.CollName("schema_migrations"), migrations)
+			engine := NewEngineWithMigrations(suite.DB, suite.CollName("schema_migrations"), migrations)
 
 			seedApplied(t, suite.DB.Collection(engine.coll), tt.applied)
 

@@ -34,10 +34,11 @@ func (m *TestMigration) Down(_ context.Context, _ *mongo.Database) error {
 }
 
 func TestNewEngine(t *testing.T) {
-	migrations := make(map[string]Migration)
+	registryMu.Lock()
+	registered = make(map[string]Migration)
+	registryMu.Unlock()
 	db := &mongo.Database{}
-
-	engine := NewEngine(db, "test_migrations", migrations)
+	engine := NewEngine(db, "test_migrations")
 
 	if engine.db != db {
 		t.Error("Engine database not set correctly")

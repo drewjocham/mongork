@@ -79,7 +79,7 @@ func (s *McpServer) ensureConnection(ctx context.Context) error {
 
 	s.client = client
 	s.db = client.Database(s.config.Mongo.Database)
-	engine := migrate.NewEngine(s.db, s.config.Mongo.Collection, migrate.RegisteredMigrations())
+	engine := migrate.NewEngine(s.db, s.config.Mongo.Collection)
 	engine.SetLogger(s.logger)
 	s.engine = engine
 

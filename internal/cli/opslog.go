@@ -3,15 +3,13 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"github.com/drewjocham/mongork/internal/migration"
+	"github.com/spf13/cobra"
 	"io"
 	"regexp"
 	"strings"
 	"text/tabwriter"
 	"time"
-
-	"github.com/drewjocham/mongork/internal/jsonutil"
-	"github.com/drewjocham/mongork/internal/migration"
-	"github.com/spf13/cobra"
 )
 
 var (
@@ -56,15 +54,13 @@ func newOpslogCmd() *cobra.Command {
 			}
 
 			out := cmd.OutOrStdout()
-			switch strings.ToLower(output) {
-			case "json":
-				return renderOpslogJSON(out, records)
-			case "table", "":
-				renderOpslogTable(out, records)
-				return nil
-			default:
-				return fmt.Errorf("%w: %s", ErrUnsupportedOutput, output)
-			}
+			return renderWithOutput(
+				out,
+				output,
+				ErrUnsupportedOutput,
+				func(w io.Writer) error { return renderOpslogTable(w, records) },
+				func(w io.Writer) error { return renderOpslogJSON(w, records) },
+			)
 		},
 	}
 
@@ -153,15 +149,13 @@ func parseOpslogTime(value string) (time.Time, error) {
 }
 
 func renderOpslogJSON(w io.Writer, records []migration.MigrationRecord) error {
-	encoder := jsonutil.NewEncoder(w)
-	encoder.SetIndent("", "  ")
-	return encoder.Encode(records)
+	return encodePrettyJSON(w, records)
 }
 
-func renderOpslogTable(w io.Writer, records []migration.MigrationRecord) {
+func renderOpslogTable(w io.Writer, records []migration.MigrationRecord) error {
 	if len(records) == 0 {
 		fmt.Fprintln(w, "No applied migrations found.")
-		return
+		return nil
 	}
 
 	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
@@ -171,5 +165,5 @@ func renderOpslogTable(w io.Writer, records []migration.MigrationRecord) {
 		appliedAt := rec.AppliedAt.Format("2006-01-02 15:04")
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", appliedAt, rec.Version, rec.Description, rec.Checksum)
 	}
-	tw.Flush()
+	return tw.Flush()
 }

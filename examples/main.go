@@ -10,11 +10,10 @@ import (
 	"text/tabwriter"
 
 	_ "github.com/drewjocham/mongork/examples/examplemigrations"
+	"github.com/drewjocham/mongork/examples/shared"
 
 	"github.com/drewjocham/mongork/internal/config"
 	"github.com/drewjocham/mongork/internal/migration"
-	"go.mongodb.org/mongo-driver/v2/mongo"
-	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 var (
@@ -35,19 +34,17 @@ func main() {
 		log.Fatalf("Configuration error: %v", err)
 	}
 
-	client, err := mongo.Connect(options.Client().ApplyURI(cfg.GetConnectionString()))
+	client, db, err := shared.Connect(ctx, cfg, cfg.Timeout)
 	if err != nil {
 		log.Fatalf("Failed to connect to MongoDB: %v", err)
 	}
 
 	defer func() {
-		if err := client.Disconnect(context.Background()); err != nil {
+		if err := shared.Disconnect(client); err != nil {
 			log.Printf("failed to disconnect MongoDB client: %v", err)
 		}
 	}()
-
-	db := client.Database(cfg.Mongo.Database)
-	engine := migration.NewEngine(db, cfg.Mongo.Collection, migration.RegisteredMigrations())
+	engine := migration.NewEngine(db, cfg.Mongo.Collection)
 
 	switch cmd := os.Args[1]; cmd {
 	case "up":

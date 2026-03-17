@@ -4,10 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 	"text/tabwriter"
 
-	"github.com/drewjocham/mongork/internal/jsonutil"
 	"github.com/drewjocham/mongork/internal/migration"
 	"github.com/spf13/cobra"
 )
@@ -35,16 +33,13 @@ func newStatusCmd() *cobra.Command {
 			}
 
 			out := cmd.OutOrStdout()
-
-			switch strings.ToLower(format) {
-			case "json":
-				return renderJSON(out, status)
-			case "table":
-				renderTable(out, status)
-				return nil
-			default:
-				return fmt.Errorf("%w: %s", ErrUnsupportedOutput, format)
-			}
+			return renderWithOutput(
+				out,
+				format,
+				ErrUnsupportedOutput,
+				func(w io.Writer) error { return renderTable(w, status) },
+				func(w io.Writer) error { return renderJSON(w, status) },
+			)
 		},
 	}
 
@@ -53,15 +48,13 @@ func newStatusCmd() *cobra.Command {
 }
 
 func renderJSON(w io.Writer, status []migration.MigrationStatus) error {
-	encoder := jsonutil.NewEncoder(w)
-	encoder.SetIndent("", "  ")
-	return encoder.Encode(status)
+	return encodePrettyJSON(w, status)
 }
 
-func renderTable(w io.Writer, status []migration.MigrationStatus) {
+func renderTable(w io.Writer, status []migration.MigrationStatus) error {
 	if len(status) == 0 {
 		fmt.Fprintln(w, "No migrations found.")
-		return
+		return nil
 	}
 
 	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
@@ -87,5 +80,5 @@ func renderTable(w io.Writer, status []migration.MigrationStatus) {
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", state, s.Version, appliedAt, s.Description)
 	}
 
-	tw.Flush()
+	return tw.Flush()
 }

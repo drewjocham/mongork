@@ -27,8 +27,8 @@ type Config struct {
 }
 
 type MongoConfig struct {
-	URL            string `env:"URL" envDefault:"mongodb://localhost:27017"`
-	Database       string `env:"DATABASE,required"`
+	URL            string `env:"DATABASE_URL" envDefault:"mongodb://localhost:27017"`
+	Database       string `env:"DATABASE_NAME,required"`
 	MigrationsPath string `env:"MIGRATIONS_PATH" envDefault:"./migrations"`
 	Collection     string `env:"MIGRATIONS_COLLECTION" envDefault:"schema_migrations"`
 	Username       string `env:"USERNAME"`

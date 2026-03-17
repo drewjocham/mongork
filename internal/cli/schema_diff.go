@@ -20,6 +20,9 @@ func renderSchemaDiff(ctx context.Context, out io.Writer) error {
 	}
 	target := diff.FromRegistry()
 	diffs := diff.Compare(live, target)
-	renderDiffTable(out, diffs)
+	err = renderDiffTable(out, diffs)
+	if err != nil {
+		return err
+	}
 	return nil
 }
