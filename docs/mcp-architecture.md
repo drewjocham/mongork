@@ -67,7 +67,7 @@ If a host disconnects (e.g., the LLM client crashes) the MCP process receives `E
 
 ## Security & host responsibility
 
-- The MCP binary inherits credentials from the environment (e.g., `MONGO_URI`, `MONGO_DATABASE`). Hosts should run it with least-privilege DB users.
+- The MCP binary inherits credentials from the environment (e.g., `MONGO_URL`, `MONGO_DATABASE`). Hosts should run it with least-privilege DB users.
 - Tool schemas require explicit `--yes` or `confirm` flags for destructive actions; LLM hosts should prompt users before sending `migrate_down` or `schema_diff --apply`.
 - MCP hosts must monitor stderr for `zap` logs—these include lock IDs, database names, and error traces useful for SOC/audit workflows.
 

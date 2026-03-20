@@ -205,10 +205,8 @@ func setupIntegrationEnv(t *testing.T, ctx context.Context) *TestEnv {
 	migrationsPath := filepath.Join(t.TempDir(), "migrations")
 
 	configContent := fmt.Sprintf(
-		"MONGO_URL=%s\nMONGO_DATABASE_URL=%s\nMONGO_DATABASE=%s\nMONGO_DATABASE_NAME=%s\nMONGO_MIGRATIONS_COLLECTION=%s\nMONGO_MIGRATIONS_PATH=%s\n",
+		"MONGO_URL=%s\nMONGO_DATABASE=%s\nMIGRATIONS_COLLECTION=%s\nMIGRATIONS_PATH=%s\n",
 		connStr,
-		connStr,
-		dbName,
 		dbName,
 		colName,
 		migrationsPath,
@@ -223,11 +221,9 @@ func setupIntegrationEnv(t *testing.T, ctx context.Context) *TestEnv {
 	t.Cleanup(func() { client.Disconnect(context.Background()) })
 
 	t.Setenv("MONGO_URL", connStr)
-	t.Setenv("MONGO_DATABASE_URL", connStr)
 	t.Setenv("MONGO_DATABASE", dbName)
-	t.Setenv("MONGO_DATABASE_NAME", dbName)
-	t.Setenv("MONGO_MIGRATIONS_COLLECTION", colName)
-	t.Setenv("MONGO_MIGRATIONS_PATH", migrationsPath)
+	t.Setenv("MIGRATIONS_COLLECTION", colName)
+	t.Setenv("MIGRATIONS_PATH", migrationsPath)
 
 	return &TestEnv{
 		ConfigPath:     configPath,

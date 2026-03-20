@@ -25,7 +25,7 @@ make mcp-client-test
 
 ### 3. Configure Environment
 ```bash
-export MONGO_URI="mongodb://localhost:27017"
+export MONGO_URL="mongodb://localhost:27017"
 export MONGO_DATABASE="your_database"
 export MIGRATIONS_COLLECTION="schema_migrations"
 ```
@@ -62,7 +62,7 @@ cat > ~/.config/ollama/mcp-config.json << EOF
       "command": "$(pwd)/build/mongo",
       "args": ["mcp"],
       "env": {
-        "MONGO_URI": "mongodb://localhost:27017",
+        "MONGO_URL": "mongodb://localhost:27017",
         "MONGO_DATABASE": "your_database"
       }
     }
@@ -92,7 +92,7 @@ EOF
          "command": "/absolute/path/to/mongo",
          "args": ["mcp"],
          "env": {
-           "MONGO_URI": "mongodb://localhost:27017",
+            "MONGO_URL": "mongodb://localhost:27017",
            "MONGO_DATABASE": "your_database"
          }
        }
@@ -114,7 +114,7 @@ EOF
            "command": "/path/to/mongo",
            "args": ["mcp"],
            "env": {
-             "MONGO_URI": "mongodb://localhost:27017",
+        "MONGO_URL": "mongodb://localhost:27017",
              "MONGO_DATABASE": "your_database"
            }
          }
@@ -236,7 +236,7 @@ Your database is now back to the previous state. You can review and fix the migr
 ## Configuration Options
 
 ### Environment Variables
-- `MONGO_URI`: MongoDB connection string (default: mongodb://localhost:27017)
+- `MONGO_URL`: MongoDB connection string (default: mongodb://localhost:27017)
 - `MONGO_DATABASE`: Database name (required)
 - `MIGRATIONS_COLLECTION`: Collection for migration tracking (default: schema_migrations)
 - `LOG_LEVEL`: Logging level (debug, info, warn, error)

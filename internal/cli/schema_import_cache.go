@@ -57,7 +57,11 @@ func saveSchemaImportCache(basePath string, cache schemaImportCache) error {
 	return os.WriteFile(path, data, 0o644)
 }
 
-func mergeSchemaImportCache(base schemaImportCache, collections []string, indexes []schema.IndexSpec) schemaImportCache {
+func mergeSchemaImportCache(
+	base schemaImportCache,
+	collections []string,
+	indexes []schema.IndexSpec,
+) schemaImportCache {
 	merged := schemaImportCache{
 		Collections:      append([]string{}, base.Collections...),
 		IndexSpecs:       append([]schema.IndexSpec{}, base.IndexSpecs...),

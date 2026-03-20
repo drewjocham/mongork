@@ -44,7 +44,7 @@ func main() {
 			log.Printf("failed to disconnect MongoDB client: %v", err)
 		}
 	}()
-	engine := migration.NewEngine(db, cfg.Mongo.Collection)
+	engine := migration.NewEngine(db, cfg.MigrationsCollection)
 
 	switch cmd := os.Args[1]; cmd {
 	case "up":

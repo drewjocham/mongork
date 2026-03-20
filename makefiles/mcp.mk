@@ -63,7 +63,7 @@ mcp-config: build
 	@echo "      \"command\": \"$(BUILD_DIR)/$(BINARY_NAME)\","
 	@echo "      \"args\": [\"mcp\"],"
 	@echo "      \"env\": {"
-	@echo "        \"MONGO_URI\": \"$(or $(MONGO_URI),mongodb://localhost:27017)\","
+	@echo "        \"MONGO_URL\": \"$(or $(MONGO_URL),mongodb://localhost:27017)\","
 	@echo "        \"MONGO_DATABASE\": \"$(or $(MONGO_DATABASE),your_db_name)\""
 	@echo "      }"
 	@echo "    }"

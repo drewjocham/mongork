@@ -145,7 +145,7 @@ func bootstrap(cmd *cobra.Command, path string, show bool, out io.Writer, offlin
 
 	engine := migration.NewEngine(
 		client.Database(cfg.Mongo.Database),
-		cfg.Mongo.Collection,
+		cfg.MigrationsCollection,
 	)
 	engine.SetLogger(slog.Default())
 

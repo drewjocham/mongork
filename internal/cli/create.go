@@ -21,7 +21,7 @@ func newCreateCmd() *cobra.Command {
 			}
 
 			gen := &migration.Generator{
-				OutputPath: cfg.Mongo.MigrationsPath,
+				OutputPath: cfg.MigrationsPath,
 			}
 
 			path, version, err := gen.Create(args[0])

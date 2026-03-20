@@ -107,7 +107,7 @@ func main() {
 
 	migration.MustRegister(&ExampleMigration{})
 
-	engine := migration.NewEngine(db, cfg.Mongo.Collection)
+	engine := migration.NewEngine(db, cfg.MigrationsCollection)
 	engine.SetLogger(logger)
 
 	if err := runExampleFlow(ctx, engine); err != nil {
@@ -123,11 +123,12 @@ func loadConfig() (*config.Config, error) {
 	if err != nil {
 		cfg = &config.Config{
 			Mongo: config.MongoConfig{
-				URL:        "mongodb://localhost:27017",
-				Database:   "standalone_example",
-				Collection: "schema_migrations",
+				URL:      "mongodb://localhost:27017",
+				Database: "standalone_example",
 			},
-			LogLevel: clog.InfoLevel,
+			MigrationsCollection: "schema_migrations",
+			MigrationsPath:       "./migrations",
+			LogLevel:             clog.InfoLevel,
 		}
 		fmt.Println("Using default configuration")
 	} else {

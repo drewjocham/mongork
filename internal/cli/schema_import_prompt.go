@@ -29,14 +29,14 @@ func maybePromptSchemaImport(ctx context.Context, cmd *cobra.Command, cfg *confi
 	if err != nil {
 		return err
 	}
-	cache, err := loadSchemaImportCache(cfg.Mongo.MigrationsPath)
+	cache, err := loadSchemaImportCache(cfg.MigrationsPath)
 	if err != nil {
 		return err
 	}
 	applySchemaImportCache(cache, live)
 	target := diff.FromRegistry()
 
-	untrackedCollections := findUntrackedCollections(live, target, cfg.Mongo.Collection)
+	untrackedCollections := findUntrackedCollections(live, target, cfg.MigrationsCollection)
 	untrackedIndexes := findUntrackedIndexes(live, target)
 	if len(untrackedCollections) == 0 && len(untrackedIndexes) == 0 {
 		return nil
@@ -75,12 +75,12 @@ func maybePromptSchemaImport(ctx context.Context, cmd *cobra.Command, cfg *confi
 		}
 	}
 
-	path, err := writeImportedSchemaFile(cfg.Mongo.MigrationsPath, untrackedCollections, untrackedIndexes)
+	path, err := writeImportedSchemaFile(cfg.MigrationsPath, untrackedCollections, untrackedIndexes)
 	if err != nil {
 		return err
 	}
 	cache = mergeSchemaImportCache(cache, untrackedCollections, untrackedIndexes)
-	if err := saveSchemaImportCache(cfg.Mongo.MigrationsPath, cache); err != nil {
+	if err := saveSchemaImportCache(cfg.MigrationsPath, cache); err != nil {
 		return err
 	}
 
