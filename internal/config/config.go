@@ -19,25 +19,25 @@ var (
 )
 
 type Config struct {
-	Mongo      MongoConfig      `envPrefix:"MONGO_"`
-	GoogleDocs GoogleDocsConfig `envPrefix:"GOOGLE_"`
-	LogLevel   log.Level        `env:"LOG_LEVEL" envDefault:"info"`
-	Timeout    time.Duration    `env:"TIMEOUT" envDefault:"60s"`
-	LogFile    string           `env:"LOG_FILE" envDefault:"mcp.log"`
+	Mongo                MongoConfig      `envPrefix:"MONGO_"`
+	GoogleDocs           GoogleDocsConfig `envPrefix:"GOOGLE_"`
+	LogLevel             log.Level        `env:"LOG_LEVEL" envDefault:"info"`
+	Timeout              time.Duration    `env:"TIMEOUT" envDefault:"60s"`
+	LogFile              string           `env:"LOG_FILE" envDefault:"mcp.log"`
+	MigrationsPath       string           `env:"MIGRATIONS_PATH" envDefault:"./migrations"`
+	MigrationsCollection string           `env:"MIGRATIONS_COLLECTION" envDefault:"schema_migrations"`
 }
 
 type MongoConfig struct {
-	URL            string `env:"URL" envDefault:"mongodb://localhost:27017"`
-	Database       string `env:"DATABASE,required"`
-	MigrationsPath string `env:"MIGRATIONS_PATH" envDefault:"./migrations"`
-	Collection     string `env:"MIGRATIONS_COLLECTION" envDefault:"schema_migrations"`
-	Username       string `env:"USERNAME"`
-	Password       string `env:"PASSWORD"`
-	AuthSource     string `env:"AUTH_SOURCE" envDefault:"admin"`
-	SSLEnabled     bool   `env:"SSL_ENABLED" envDefault:"false"`
-	SSLInsecure    bool   `env:"SSL_INSECURE" envDefault:"false"`
-	MaxPoolSize    int    `env:"MAX_POOL_SIZE" envDefault:"10"`
-	MinPoolSize    int    `env:"MIN_POOL_SIZE" envDefault:"1"`
+	URL         string `env:"URL" envDefault:"mongodb://localhost:27017"`
+	Database    string `env:"DATABASE,required"`
+	Username    string `env:"USERNAME"`
+	Password    string `env:"PASSWORD"`
+	AuthSource  string `env:"AUTH_SOURCE" envDefault:"admin"`
+	SSLEnabled  bool   `env:"SSL_ENABLED" envDefault:"false"`
+	SSLInsecure bool   `env:"SSL_INSECURE" envDefault:"false"`
+	MaxPoolSize int    `env:"MAX_POOL_SIZE" envDefault:"10"`
+	MinPoolSize int    `env:"MIN_POOL_SIZE" envDefault:"1"`
 }
 
 type GoogleDocsConfig struct {

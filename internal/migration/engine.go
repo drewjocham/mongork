@@ -57,7 +57,11 @@ type Engine struct {
 	logger     *slog.Logger
 }
 
-func NewEngine(db *mongo.Database, collection string, migrations map[string]Migration) *Engine {
+func NewEngine(db *mongo.Database, collection string) *Engine {
+	return NewEngineWithMigrations(db, collection, RegisteredMigrations())
+}
+
+func NewEngineWithMigrations(db *mongo.Database, collection string, migrations map[string]Migration) *Engine {
 	cloned := make(map[string]Migration, len(migrations))
 	for k, v := range migrations {
 		cloned[k] = v

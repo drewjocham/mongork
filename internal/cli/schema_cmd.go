@@ -4,10 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 	"text/tabwriter"
 
-	"github.com/drewjocham/mongork/internal/jsonutil"
 	"github.com/drewjocham/mongork/internal/schema"
 	"github.com/drewjocham/mongork/internal/schema/diff"
 	"github.com/spf13/cobra"
@@ -35,15 +33,7 @@ func newSchemaIndexesCmd() *cobra.Command {
 		Short:       "List expected indexes registered in code",
 		Annotations: map[string]string{annotationOffline: "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			switch strings.ToLower(output) {
-			case "json":
-				return renderIndexesJSON(cmd.OutOrStdout())
-			case "table", "":
-				renderIndexesTable(cmd.OutOrStdout())
-				return nil
-			default:
-				return fmt.Errorf("%w: %s", ErrUnsupportedOutputFormat, output)
-			}
+			return renderWithOutput(cmd.OutOrStdout(), output, ErrUnsupportedOutputFormat, renderIndexesTable, renderIndexesJSON)
 		},
 	}
 
@@ -79,15 +69,13 @@ func newSchemaDiffCmd() *cobra.Command {
 			}
 			diffs := diff.Compare(live, target)
 
-			switch strings.ToLower(output) {
-			case "json":
-				return renderDiffJSON(cmd.OutOrStdout(), diffs)
-			case "table", "":
-				renderDiffTable(cmd.OutOrStdout(), diffs)
-				return nil
-			default:
-				return fmt.Errorf("%w: %s", ErrUnsupportedOutputFormat, output)
-			}
+			return renderWithOutput(
+				cmd.OutOrStdout(),
+				output,
+				ErrUnsupportedOutputFormat,
+				func(w io.Writer) error { return renderDiffTable(w, diffs) },
+				func(w io.Writer) error { return renderDiffJSON(w, diffs) },
+			)
 		},
 	}
 
@@ -96,16 +84,14 @@ func newSchemaDiffCmd() *cobra.Command {
 }
 
 func renderIndexesJSON(w io.Writer) error {
-	encoder := jsonutil.NewEncoder(w)
-	encoder.SetIndent("", "  ")
-	return encoder.Encode(schema.Indexes())
+	return encodePrettyJSON(w, schema.Indexes())
 }
 
-func renderIndexesTable(w io.Writer) {
+func renderIndexesTable(w io.Writer) error {
 	indexes := schema.Indexes()
 	if len(indexes) == 0 {
 		fmt.Fprintln(w, "No index specifications registered.")
-		return
+		return nil
 	}
 
 	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
@@ -138,19 +124,17 @@ func renderIndexesTable(w io.Writer) {
 		)
 	}
 
-	tw.Flush()
+	return tw.Flush()
 }
 
 func renderDiffJSON(w io.Writer, diffs []diff.Diff) error {
-	encoder := jsonutil.NewEncoder(w)
-	encoder.SetIndent("", "  ")
-	return encoder.Encode(diffs)
+	return encodePrettyJSON(w, diffs)
 }
 
-func renderDiffTable(w io.Writer, diffs []diff.Diff) {
+func renderDiffTable(w io.Writer, diffs []diff.Diff) error {
 	if len(diffs) == 0 {
 		fmt.Fprintln(w, "No schema drift detected.")
-		return
+		return nil
 	}
 
 	tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
@@ -174,5 +158,5 @@ func renderDiffTable(w io.Writer, diffs []diff.Diff) {
 		)
 	}
 
-	tw.Flush()
+	return tw.Flush()
 }

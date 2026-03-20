@@ -53,7 +53,6 @@ func (e *Encoder) Encode(v any) error {
 	return err
 }
 
-// Decoder wraps sonic's streaming decoder.
 type Decoder = decoder.StreamDecoder
 
 func NewDecoder(r io.Reader) *Decoder {

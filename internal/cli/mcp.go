@@ -114,7 +114,7 @@ func runMCPConfig(cmd *cobra.Command, _ []string) error {
 				"command": exePath,
 				"args":    []string{"mcp"},
 				"env": map[string]string{
-					"MONGO_URI":      getEnv("MONGO_URI", "mongodb://localhost:27017"),
+					"MONGO_URL":      getEnv("MONGO_URL", "mongodb://localhost:27017"),
 					"MONGO_DATABASE": getEnv("MONGO_DATABASE", "your_database"),
 				},
 			},

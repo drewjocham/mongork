@@ -13,6 +13,7 @@ import (
 	"time"
 
 	clog "github.com/containerd/log"
+	"github.com/drewjocham/mongork/examples/shared"
 	logging "github.com/drewjocham/mongork/internal/log"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -29,7 +30,6 @@ var (
 	ErrFailedToDropColl    = errors.New("failed to drop collection")
 	ErrValidationFailed    = errors.New("validation failed")
 	ErrConnectionFailed    = errors.New("connection failed")
-	ErrPingFailed          = errors.New("ping failed")
 )
 
 const connectionTimeout = 10 * time.Second
@@ -100,14 +100,14 @@ func main() {
 		log.Fatal(err)
 	}
 	defer func() {
-		if err := client.Disconnect(context.Background()); err != nil {
+		if err := shared.Disconnect(client); err != nil {
 			log.Printf("failed to disconnect MongoDB client: %v", err)
 		}
 	}()
 
 	migration.MustRegister(&ExampleMigration{})
 
-	engine := migration.NewEngine(db, cfg.Mongo.Collection, migration.RegisteredMigrations())
+	engine := migration.NewEngine(db, cfg.MigrationsCollection)
 	engine.SetLogger(logger)
 
 	if err := runExampleFlow(ctx, engine); err != nil {
@@ -123,11 +123,12 @@ func loadConfig() (*config.Config, error) {
 	if err != nil {
 		cfg = &config.Config{
 			Mongo: config.MongoConfig{
-				URL:        "mongodb://localhost:27017",
-				Database:   "standalone_example",
-				Collection: "schema_migrations",
+				URL:      "mongodb://localhost:27017",
+				Database: "standalone_example",
 			},
-			LogLevel: clog.InfoLevel,
+			MigrationsCollection: "schema_migrations",
+			MigrationsPath:       "./migrations",
+			LogLevel:             clog.InfoLevel,
 		}
 		fmt.Println("Using default configuration")
 	} else {
@@ -142,21 +143,15 @@ func loadConfig() (*config.Config, error) {
 }
 
 func connectToMongoDB(ctx context.Context, cfg *config.Config) (*mongo.Client, *mongo.Database, error) {
-	connCtx, cancel := context.WithTimeout(ctx, connectionTimeout)
-	defer cancel()
 
 	fmt.Printf("Connecting to: %s/%s\n", cfg.Mongo.URL, cfg.Mongo.Database)
-	client, err := mongo.Connect(options.Client().ApplyURI(cfg.GetConnectionString()))
+	client, db, err := shared.Connect(ctx, cfg, connectionTimeout)
 	if err != nil {
 		return nil, nil, fmt.Errorf("%w: %w", ErrConnectionFailed, err)
 	}
 
-	if err = client.Ping(connCtx, nil); err != nil {
-		return nil, nil, fmt.Errorf("%w: %w", ErrPingFailed, err)
-	}
-
 	fmt.Println("Connected successfully")
-	return client, client.Database(cfg.Mongo.Database), nil
+	return client, db, nil
 }
 
 func runExampleFlow(ctx context.Context, engine *migration.Engine) error {

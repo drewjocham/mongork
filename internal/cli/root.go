@@ -67,7 +67,7 @@ func newRootCmd() *cobra.Command {
 			}
 			logCleanup = cleanup
 
-			s, err := bootstrap(cmd.Context(), configFile, showConfig, cmd.OutOrStdout(), isOffline(cmd))
+			s, err := bootstrap(cmd, configFile, showConfig, cmd.OutOrStdout(), isOffline(cmd))
 			if err != nil {
 				return err
 			}
@@ -113,7 +113,8 @@ func newRootCmd() *cobra.Command {
 	return cmd
 }
 
-func bootstrap(ctx context.Context, path string, show bool, out io.Writer, offline bool) (*Services, error) {
+func bootstrap(cmd *cobra.Command, path string, show bool, out io.Writer, offline bool) (*Services, error) {
+	ctx := cmd.Context()
 	cfg, err := loadConfig(path)
 	if err != nil {
 		return nil, err
@@ -138,11 +139,13 @@ func bootstrap(ctx context.Context, path string, show bool, out io.Writer, offli
 	if err != nil {
 		return nil, err
 	}
+	if err := maybePromptSchemaImport(ctx, cmd, cfg, client.Database(cfg.Mongo.Database)); err != nil {
+		return nil, err
+	}
 
 	engine := migration.NewEngine(
 		client.Database(cfg.Mongo.Database),
-		cfg.Mongo.Collection,
-		migration.RegisteredMigrations(),
+		cfg.MigrationsCollection,
 	)
 	engine.SetLogger(slog.Default())
 

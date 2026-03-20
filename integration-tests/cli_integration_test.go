@@ -42,6 +42,8 @@ func TestCLICommands(t *testing.T) {
 
 	versions := sortedMigrationVersions()
 	require.NotEmpty(t, versions)
+	targetVersion := "20240101_001"
+	require.Contains(t, versions, targetVersion)
 	latest := versions[len(versions)-1]
 
 	type testCase struct {
@@ -88,15 +90,15 @@ func TestCLICommands(t *testing.T) {
 			name: "Initial status is pending",
 			args: []string{"status"},
 			assert: func(t *testing.T, _ *TestEnv, output string) {
-				assertVersionState(t, output, latest, "[ ]")
+				assertVersionState(t, output, targetVersion, "[ ]")
 			},
 		},
 		{
-			name: "Migrate up to latest",
-			args: []string{"up"},
+			name: "Migrate up to stable target",
+			args: []string{"up", "--target", targetVersion},
 			assert: func(t *testing.T, _ *TestEnv, output string) {
 				assert.Contains(t, output, "Database is")
-				assertMigrationRecordExists(t, env, latest)
+				assertMigrationRecordExists(t, env, targetVersion)
 			},
 		},
 		{
@@ -111,21 +113,21 @@ func TestCLICommands(t *testing.T) {
 			args: []string{"opslog"},
 			assert: func(t *testing.T, _ *TestEnv, output string) {
 				assert.Contains(t, output, "APPLIED AT")
-				assert.Contains(t, output, latest)
+				assert.Contains(t, output, targetVersion)
 			},
 		},
 		{
 			name: "Opslog JSON output with search",
-			args: []string{"opslog", "--output", "json", "--search", latest},
+			args: []string{"opslog", "--output", "json", "--search", targetVersion},
 			assert: func(t *testing.T, _ *TestEnv, output string) {
-				assert.Contains(t, output, latest)
+				assert.Contains(t, output, targetVersion)
 			},
 		},
 		{
 			name: "Status shows completed",
 			args: []string{"status"},
 			assert: func(t *testing.T, _ *TestEnv, output string) {
-				assertVersionState(t, output, latest, "[✓]")
+				assertVersionState(t, output, targetVersion, "[✓]")
 			},
 		},
 		{
@@ -203,7 +205,7 @@ func setupIntegrationEnv(t *testing.T, ctx context.Context) *TestEnv {
 	migrationsPath := filepath.Join(t.TempDir(), "migrations")
 
 	configContent := fmt.Sprintf(
-		"MONGO_URL=%s\nMONGO_DATABASE=%s\nMONGO_MIGRATIONS_COLLECTION=%s\nMONGO_MIGRATIONS_PATH=%s\n",
+		"MONGO_URL=%s\nMONGO_DATABASE=%s\nMIGRATIONS_COLLECTION=%s\nMIGRATIONS_PATH=%s\n",
 		connStr,
 		dbName,
 		colName,
@@ -220,8 +222,8 @@ func setupIntegrationEnv(t *testing.T, ctx context.Context) *TestEnv {
 
 	t.Setenv("MONGO_URL", connStr)
 	t.Setenv("MONGO_DATABASE", dbName)
-	t.Setenv("MONGO_MIGRATIONS_COLLECTION", colName)
-	t.Setenv("MONGO_MIGRATIONS_PATH", migrationsPath)
+	t.Setenv("MIGRATIONS_COLLECTION", colName)
+	t.Setenv("MIGRATIONS_PATH", migrationsPath)
 
 	return &TestEnv{
 		ConfigPath:     configPath,

@@ -44,10 +44,10 @@ db.users.insertMany([
   }
 ]);
 
-print("✅ Created migration_examples database with sample users");
-print("📊 Inserted " + db.users.countDocuments({}) + " sample users");
+print("Created migration_examples database with sample users");
+print("Inserted " + db.users.countDocuments({}) + " sample users");
 
-print("\n📋 Sample data overview:");
+print("\nSample data overview:");
 db.users.find({}, {email: 1, first_name: 1, last_name: 1, status: 1}).forEach(printjson);
 
 print("\nReady for migration examples!");

@@ -21,8 +21,9 @@ type ValidatorSpec struct {
 }
 
 type SchemaSpec struct {
-	Indexes    map[string]map[string]IndexSpec
-	Validators map[string]ValidatorSpec
+	Collections map[string]struct{}
+	Indexes     map[string]map[string]IndexSpec
+	Validators  map[string]ValidatorSpec
 }
 
 type Diff struct {
@@ -36,7 +37,8 @@ type Diff struct {
 
 func NewSchemaSpec() SchemaSpec {
 	return SchemaSpec{
-		Indexes:    make(map[string]map[string]IndexSpec),
-		Validators: make(map[string]ValidatorSpec),
+		Collections: make(map[string]struct{}),
+		Indexes:     make(map[string]map[string]IndexSpec),
+		Validators:  make(map[string]ValidatorSpec),
 	}
 }

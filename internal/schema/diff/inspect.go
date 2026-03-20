@@ -29,6 +29,7 @@ func InspectLive(ctx context.Context, db *mongo.Database) (SchemaSpec, error) {
 		if !ok {
 			continue
 		}
+		spec.Collections[collName] = struct{}{}
 
 		validator, level := parseValidator(doc)
 		if len(validator) > 0 {

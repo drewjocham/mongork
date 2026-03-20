@@ -7,6 +7,30 @@ import (
 
 func Compare(live, target SchemaSpec) []Diff {
 	var diffs []Diff
+	for _, coll := range unionKeys(live.Collections, target.Collections) {
+		_, liveOK := live.Collections[coll]
+		_, targetOK := target.Collections[coll]
+		switch {
+		case !liveOK && targetOK:
+			diffs = append(diffs, Diff{
+				Component: "collection",
+				Action:    "AddCollection",
+				Target:    coll,
+				Current:   "missing",
+				Proposed:  "tracked in registry",
+				Risk:      "LOW",
+			})
+		case liveOK && !targetOK:
+			diffs = append(diffs, Diff{
+				Component: "collection",
+				Action:    "TrackCollection",
+				Target:    coll,
+				Current:   "present in live database",
+				Proposed:  "missing from registry",
+				Risk:      "LOW",
+			})
+		}
+	}
 
 	for _, coll := range unionKeys(live.Indexes, target.Indexes) {
 		liveIndexes := live.Indexes[coll]

@@ -12,24 +12,24 @@ import (
 var ErrRenderConfig = errors.New("failed to render configuration")
 
 type safeConfig struct {
-	Mongo      safeMongoConfig      `json:"mongo"`
-	GoogleDocs safeGoogleDocsConfig `json:"google_docs"`
-	LogLevel   string               `json:"log_level"`
-	Timeout    string               `json:"timeout"`
+	Mongo                safeMongoConfig      `json:"mongo"`
+	GoogleDocs           safeGoogleDocsConfig `json:"google_docs"`
+	LogLevel             string               `json:"log_level"`
+	Timeout              string               `json:"timeout"`
+	MigrationsPath       string               `json:"migrations_path"`
+	MigrationsCollection string               `json:"migrations_collection"`
 }
 
 type safeMongoConfig struct {
-	URL            string `json:"url"`
-	Database       string `json:"database"`
-	MigrationsPath string `json:"migrations_path"`
-	Collection     string `json:"collection"`
-	Username       string `json:"username"`
-	Password       string `json:"password"`
-	AuthSource     string `json:"auth_source"`
-	SSLEnabled     bool   `json:"ssl_enabled"`
-	SSLInsecure    bool   `json:"ssl_insecure"`
-	MaxPoolSize    int    `json:"max_pool_size"`
-	MinPoolSize    int    `json:"min_pool_size"`
+	URL         string `json:"url"`
+	Database    string `json:"database"`
+	Username    string `json:"username"`
+	Password    string `json:"password"`
+	AuthSource  string `json:"auth_source"`
+	SSLEnabled  bool   `json:"ssl_enabled"`
+	SSLInsecure bool   `json:"ssl_insecure"`
+	MaxPoolSize int    `json:"max_pool_size"`
+	MinPoolSize int    `json:"min_pool_size"`
 }
 
 type safeGoogleDocsConfig struct {
@@ -43,20 +43,20 @@ func renderConfig(out io.Writer, cfg *config.Config) error {
 	enc.SetIndent("", "  ")
 
 	safe := safeConfig{
-		LogLevel: cfg.LogLevel.String(),
-		Timeout:  cfg.Timeout.String(),
+		LogLevel:             cfg.LogLevel.String(),
+		Timeout:              cfg.Timeout.String(),
+		MigrationsPath:       cfg.MigrationsPath,
+		MigrationsCollection: cfg.MigrationsCollection,
 		Mongo: safeMongoConfig{
-			URL:            cfg.Mongo.URL,
-			Database:       cfg.Mongo.Database,
-			MigrationsPath: cfg.Mongo.MigrationsPath,
-			Collection:     cfg.Mongo.Collection,
-			Username:       cfg.Mongo.Username,
-			Password:       maskSecret(cfg.Mongo.Password),
-			AuthSource:     cfg.Mongo.AuthSource,
-			SSLEnabled:     cfg.Mongo.SSLEnabled,
-			SSLInsecure:    cfg.Mongo.SSLInsecure,
-			MaxPoolSize:    cfg.Mongo.MaxPoolSize,
-			MinPoolSize:    cfg.Mongo.MinPoolSize,
+			URL:         cfg.Mongo.URL,
+			Database:    cfg.Mongo.Database,
+			Username:    cfg.Mongo.Username,
+			Password:    maskSecret(cfg.Mongo.Password),
+			AuthSource:  cfg.Mongo.AuthSource,
+			SSLEnabled:  cfg.Mongo.SSLEnabled,
+			SSLInsecure: cfg.Mongo.SSLInsecure,
+			MaxPoolSize: cfg.Mongo.MaxPoolSize,
+			MinPoolSize: cfg.Mongo.MinPoolSize,
 		},
 		GoogleDocs: safeGoogleDocsConfig{
 			Enabled:         cfg.GoogleDocs.Enabled,

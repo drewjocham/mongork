@@ -45,14 +45,14 @@ func main() {
     }
     defer client.Disconnect(ctx)
 	
-    engine := migration.NewEngine(client.Database(cfg.Database), cfg.MigrationsCollection)
-
-    // Register your migrations
-    engine.RegisterMany(
+    // Register your migrations globally
+    migration.MustRegister(
         &AddUserIndexesMigration{},
         &CreateProductCollection{},
         // ... migrations
     )
+
+    engine := migration.NewEngine(client.Database(cfg.Database), cfg.MigrationsCollection)
 	
     if err := engine.Up(ctx, ""); err != nil {
         log.Fatal("Migration failed:", err)
@@ -119,9 +119,9 @@ func (m *AddUserIndexesMigration) Down(ctx context.Context, db *mongo.Database) 
 // Create engine
 engine := migration.NewEngine(database, "migrations")
 
-// Register migrations
-engine.Register(&MyMigration{})
-engine.RegisterMany(migration1, migration2, migration3)
+// Register migrations globally
+migration.MustRegister(&MyMigration{})
+migration.MustRegister(migration1, migration2, migration3)
 
 // Run migrations up
 err := engine.Up(ctx, "") // All pending migrations
@@ -139,6 +139,23 @@ for _, s := range status {
     fmt.Printf("Migration %s: %s (Applied: %v)\n", 
         s.Version, s.Description, s.Applied)
 }
+```
+
+#### Migration Registry
+
+`migration.NewEngine(...)` reads from the global registry. Register migrations once during startup:
+
+```go
+migration.MustRegister(&MyMigration{})
+
+all := migration.RegisteredMigrations()
+
+premiumOnly := migration.GetMigrations(func(version string, m migration.Migration) bool {
+    return strings.Contains(m.Description(), "premium")
+})
+
+_ = all
+_ = premiumOnly
 ```
 
 ### 2. Configuration (`config`)
