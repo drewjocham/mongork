@@ -34,7 +34,7 @@ export MAIN_PACKAGE?=./cmd
 
 # Docker options
 export DOCKER_IMAGE=mongo
-export DOCKER_TAG?=latest
+export DOCKER_TAG?=8.0
 export DOCKERFILE_LOCAL?=$(REPO_ROOT)/$(DOCKER_DIR)/Dockerfile.local
 export DOCKERFILE_MCP?=$(REPO_ROOT)/$(DOCKER_DIR)/Dockerfile.mcp
 export COMPOSE_FILE_INTEGRATION?=$(REPO_ROOT)/$(DOCKER_DIR)/integration-compose.yml

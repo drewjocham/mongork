@@ -29,7 +29,7 @@ docs: ## Generate documentation
 tidy: ## Tidy Go modules for all services
 	@echo "🧹 Tidying all workspace modules with Go $(GO_COMPAT_VERSION) compatibility..."
 	go mod tidy -go=$(GO_COMPAT_VERSION) && cd $(REPO_ROOT);
-	@echo "✅ All modules tidied"
+	@echo "All modules tidied"
 
 version: ## Show version information
 	@echo "Go version: $(shell go version)"

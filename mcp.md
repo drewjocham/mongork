@@ -42,7 +42,7 @@ export MIGRATIONS_COLLECTION="schema_migrations"
 ./build/mongo mcp --with-examples --tags include_examples
 ```
 
-## AI Assistant Integration
+## AI Agent Integration
 
 ### Ollama Integration
 
@@ -283,7 +283,7 @@ To add custom tools to the MCP server:
 1. **Extend the MCP server** (`mcp/handers.go`):
    ```go
    {
-       Name:        "my_custom_tool",
+       Name: "my_custom_tool",
        Description: "Description of what it does",
        InputSchema: map[string]interface{}{
            "type": "object",
