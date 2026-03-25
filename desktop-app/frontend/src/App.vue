@@ -10,6 +10,5 @@ import MongoManager from './components/MongoManager.vue'
 body {
   margin: 0;
   padding: 0;
-  background: #f5f5f5;
 }
 </style>

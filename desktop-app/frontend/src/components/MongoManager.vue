@@ -460,6 +460,11 @@ onMounted(() => {
 .app-container {
   padding: 20px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  background: white;
+  color: #333;
+  text-align: left;
+  min-height: 100vh;
+  box-sizing: border-box;
 }
 .header {
   display: flex;
@@ -488,6 +493,7 @@ onMounted(() => {
   border: none;
   cursor: pointer;
   font-size: 16px;
+  color: #555;
 }
 .tabs button.active {
   border-bottom: 2px solid #2196f3;
@@ -562,6 +568,34 @@ onMounted(() => {
   gap: 10px;
   align-items: center;
   margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.controls input {
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  color: #333;
+  background: white;
+  font-size: 14px;
+}
+.controls button {
+  padding: 8px 16px;
+  background: #2196f3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.controls button:disabled {
+  background: #ccc;
+  color: #666;
+  cursor: not-allowed;
+}
+.controls label {
+  color: #333;
+  white-space: nowrap;
 }
 .oplog-entry {
   background: #f9f9f9;

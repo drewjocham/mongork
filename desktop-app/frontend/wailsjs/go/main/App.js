@@ -22,6 +22,14 @@ export function GetDBHealth() {
   return window['go']['main']['App']['GetDBHealth']();
 }
 
+export function GetMCPActivity(arg1) {
+  return window['go']['main']['App']['GetMCPActivity'](arg1);
+}
+
+export function GetMCPServerStatus() {
+  return window['go']['main']['App']['GetMCPServerStatus']();
+}
+
 export function GetOplog(arg1) {
   return window['go']['main']['App']['GetOplog'](arg1);
 }
@@ -40,6 +48,14 @@ export function GetSchemaIndexes() {
 
 export function GetStatus() {
   return window['go']['main']['App']['GetStatus']();
+}
+
+export function StartMCPServer(arg1, arg2) {
+  return window['go']['main']['App']['StartMCPServer'](arg1, arg2);
+}
+
+export function StopMCPServer() {
+  return window['go']['main']['App']['StopMCPServer']();
 }
 
 export function Up(arg1, arg2) {

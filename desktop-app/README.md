@@ -10,7 +10,7 @@ A desktop application for managing MongoDB migrations via [mongork](https://gith
 - **Oplog** — inspect raw MongoDB oplog entries
 - **Schema Diff** — compare registered indexes/validators against the live database
 - **Health** — view database role, oplog window, connection counts, and replication lag
-- **MCP** — start/stop the MCP server for AI-assisted operations (Claude, Ollama, Goose)
+- **MCP** — start/stop the MCP server
 
 ## Prerequisites
 
