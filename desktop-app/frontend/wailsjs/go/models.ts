@@ -147,3 +147,30 @@ export namespace desktop {
 
 }
 
+export namespace main {
+	
+	export class SavedConnection {
+	    name: string;
+	    url: string;
+	    database: string;
+	    username: string;
+	    password: string;
+	    last_used: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SavedConnection(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.url = source["url"];
+	        this.database = source["database"];
+	        this.username = source["username"];
+	        this.password = source["password"];
+	        this.last_used = source["last_used"];
+	    }
+	}
+
+}
+

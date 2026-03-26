@@ -45,19 +45,19 @@ func persistSettings(s *appSettings) error {
 	return os.WriteFile(filepath.Join(dir, "settings.json"), data, 0600)
 }
 
-type claudeRequest struct {
-	Model     string          `json:"model"`
-	MaxTokens int             `json:"max_tokens"`
-	System    string          `json:"system,omitempty"`
-	Messages  []claudeMessage `json:"messages"`
+type mongorkRequest struct {
+	Model     string           `json:"model"`
+	MaxTokens int              `json:"max_tokens"`
+	System    string           `json:"system,omitempty"`
+	Messages  []mongorkMessage `json:"messages"`
 }
 
-type claudeMessage struct {
+type mongorkMessage struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
 }
 
-type claudeResponse struct {
+type mongorkResponse struct {
 	Content []struct {
 		Text string `json:"text"`
 	} `json:"content"`
@@ -66,16 +66,16 @@ type claudeResponse struct {
 	} `json:"error,omitempty"`
 }
 
-func askClaude(apiKey, systemPrompt, userMessage string) (string, error) {
+func askMongork(apiKey, systemPrompt, userMessage string) (string, error) {
 	if apiKey == "" {
 		return "", fmt.Errorf("no API key configured — add your Anthropic API key in the AI tab")
 	}
 
-	reqBody := claudeRequest{
+	reqBody := mongorkRequest{
 		Model:     "claude-sonnet-4-6",
 		MaxTokens: 1024,
 		System:    systemPrompt,
-		Messages:  []claudeMessage{{Role: "user", Content: userMessage}},
+		Messages:  []mongorkMessage{{Role: "user", Content: userMessage}},
 	}
 
 	body, err := json.Marshal(reqBody)
@@ -102,7 +102,7 @@ func askClaude(apiKey, systemPrompt, userMessage string) (string, error) {
 		return "", err
 	}
 
-	var result claudeResponse
+	var result mongorkResponse
 	if err := json.Unmarshal(data, &result); err != nil {
 		return "", fmt.Errorf("failed to parse response: %w", err)
 	}

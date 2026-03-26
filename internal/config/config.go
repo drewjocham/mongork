@@ -89,11 +89,13 @@ func (c *Config) GetConnectionString() string {
 
 	q := u.Query()
 
-	if strings.Contains(u.Host, "localhost") && !q.Has("connect") {
-		q.Set("connect", "direct")
+	// Only inject direct-connection hint if neither form is already present.
+	if strings.Contains(u.Host, "localhost") && !q.Has("connect") && !q.Has("directConnection") {
+		q.Set("directConnection", "true")
 	}
 
-	if c.Mongo.AuthSource != "" && !q.Has("authSource") {
+	// Only add authSource when credentials are actually being used.
+	if c.Mongo.Username != "" && c.Mongo.AuthSource != "" && !q.Has("authSource") {
 		q.Set("authSource", c.Mongo.AuthSource)
 	}
 
