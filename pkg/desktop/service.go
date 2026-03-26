@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -68,10 +69,11 @@ type IndexSpec struct {
 }
 
 type Service struct {
-	config      *config.Config
-	engine      *migration.Engine
-	mongoClient *mongo.Client
-	mu          sync.RWMutex
+	config         *config.Config
+	engine         *migration.Engine
+	mongoClient    *mongo.Client
+	mu             sync.RWMutex
+	migrationsPath string
 
 	mcpMu         sync.RWMutex
 	mcpServer     *mcp.McpServer
@@ -103,14 +105,9 @@ func (s *Service) Connect(ctx context.Context, connectionString, database, usern
 		MigrationsPath:       "./migrations",
 	}
 
-	client, err := s.dial(ctx, cfg)
+	client, err := s.dial(cfg)
 	if err != nil {
 		return fmt.Errorf("failed to connect: %w", err)
-	}
-
-	if len(migration.RegisteredMigrations()) == 0 {
-		_ = client.Disconnect(ctx)
-		return errors.New("no migrations registered")
 	}
 
 	s.config = cfg
@@ -363,14 +360,21 @@ func (s *Service) GetOpslog(ctx context.Context, search, version,
 
 func (s *Service) CreateMigration(ctx context.Context, name string) (string, error) {
 	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	pathStr := "./migrations"
-	if s.config != nil {
+	pathStr := s.migrationsPath
+	if pathStr == "" && s.config != nil {
 		pathStr = s.config.MigrationsPath
 	}
+	if pathStr == "" {
+		pathStr = "./migrations"
+	}
+	s.mu.RUnlock()
 
-	gen := &migration.Generator{OutputPath: pathStr}
+	absPath, err := filepath.Abs(pathStr)
+	if err != nil {
+		absPath = pathStr
+	}
+
+	gen := &migration.Generator{OutputPath: absPath}
 	path, version, err := gen.Create(name)
 	if err != nil {
 		return "", fmt.Errorf("failed to create migration: %w", err)
@@ -378,7 +382,28 @@ func (s *Service) CreateMigration(ctx context.Context, name string) (string, err
 	return fmt.Sprintf("Migration created: %s (version: %s)", path, version), nil
 }
 
-func (s *Service) dial(ctx context.Context, cfg *config.Config) (*mongo.Client, error) {
+// SetMigrationsPath sets the output directory for generated migrations.
+func (s *Service) SetMigrationsPath(path string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.migrationsPath = path
+	return nil
+}
+
+// GetMigrationsPath returns the configured migrations output directory.
+func (s *Service) GetMigrationsPath() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.migrationsPath != "" {
+		return s.migrationsPath
+	}
+	if s.config != nil {
+		return s.config.MigrationsPath
+	}
+	return "./migrations"
+}
+
+func (s *Service) dial(cfg *config.Config) (*mongo.Client, error) {
 	opts := options.Client().
 		ApplyURI(cfg.GetConnectionString()).
 		SetMaxPoolSize(uint64(cfg.Mongo.MaxPoolSize)).
@@ -393,37 +418,16 @@ func (s *Service) dial(ctx context.Context, cfg *config.Config) (*mongo.Client, 
 		return nil, err
 	}
 
-	if err := s.ping(ctx, client, 5); err != nil {
-		_ = client.Disconnect(ctx)
-		return nil, err
+	// Use a fresh context independent of the Wails app context, which can be
+	// cancelled by the runtime before the ping completes.
+	pingCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	if err := client.Ping(pingCtx, nil); err != nil {
+		_ = client.Disconnect(context.Background())
+		return nil, fmt.Errorf("ping %s: %w", cfg.GetConnectionString(), err)
 	}
 
 	return client, nil
-}
-
-func (s *Service) ping(ctx context.Context, client *mongo.Client, retries int) error {
-	for i := 1; i <= retries; i++ {
-		pCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
-		err := client.Ping(pCtx, nil)
-		cancel()
-
-		if err == nil {
-			return nil
-		}
-
-		zap.S().Warnf("Attempt %d/%d failed: %v", i, retries, err)
-
-		if i == retries {
-			return fmt.Errorf("unreachable: %w", err)
-		}
-
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(1 * time.Second):
-		}
-	}
-	return nil
 }
 
 func (s *Service) StartMCPServer(ctx context.Context, transport, listenAddr string) (string, error) {

@@ -3,12 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/drewjocham/mongork/pkg/desktop"
 )
 
-// App struct
 type App struct {
 	ctx     context.Context
 	service *desktop.Service
@@ -21,8 +22,7 @@ func NewApp() *App {
 	}
 }
 
-// startup is called when the app starts. The context is saved
-// so we can call the runtime methods
+// The context is saved so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 }
@@ -36,7 +36,7 @@ func (a *App) shutdown(ctx context.Context) {
 
 // Connect establishes a connection to MongoDB
 func (a *App) Connect(connectionString, database, username, password string) (string, error) {
-	ctx, cancel := context.WithTimeout(a.ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(a.ctx, 30*time.Second)
 	defer cancel()
 	err := a.service.Connect(ctx, connectionString, database, username, password)
 	if err != nil {
@@ -143,4 +143,84 @@ func (a *App) GetMCPActivity(limit int) ([]map[string]interface{}, error) {
 	ctx, cancel := context.WithTimeout(a.ctx, 30*time.Second)
 	defer cancel()
 	return a.service.GetMCPActivity(ctx, limit)
+}
+
+// SaveConnection saves a named connection to disk
+func (a *App) SaveConnection(conn SavedConnection) error {
+	return upsertConnection(conn)
+}
+
+// LoadConnections returns all saved connections
+func (a *App) LoadConnections() ([]SavedConnection, error) {
+	return loadConnections()
+}
+
+// DeleteConnection removes a saved connection by name
+func (a *App) DeleteConnection(name string) error {
+	return removeConnection(name)
+}
+
+// ParseConnectionString parses a MongoDB URI and returns its components
+func (a *App) ParseConnectionString(uri string) map[string]string {
+	result := map[string]string{
+		"url":      uri,
+		"database": "",
+		"username": "",
+		"password": "",
+	}
+	u, err := url.Parse(uri)
+	if err != nil {
+		return result
+	}
+	if u.User != nil {
+		result["username"] = u.User.Username()
+		result["password"], _ = u.User.Password()
+		u.User = nil
+		result["url"] = u.String()
+	}
+	if path := strings.TrimPrefix(u.Path, "/"); path != "" {
+		result["database"] = path
+		u.Path = "/"
+		result["url"] = u.String()
+	}
+	return result
+}
+
+// GetAIKey returns the stored Anthropic API key
+func (a *App) GetAIKey() (string, error) {
+	s, err := loadSettings()
+	if err != nil {
+		return "", err
+	}
+	return s.AIKey, nil
+}
+
+// SetAIKey persists the Anthropic API key
+func (a *App) SetAIKey(key string) error {
+	s, err := loadSettings()
+	if err != nil {
+		s = &appSettings{}
+	}
+	s.AIKey = key
+	return persistSettings(s)
+}
+
+// AskAI sends a question to Claude and returns the answer
+func (a *App) AskAI(question string) (string, error) {
+	s, err := loadSettings()
+	if err != nil || s.AIKey == "" {
+		return "", fmt.Errorf("no API key configured — add your Anthropic API key in the AI tab")
+	}
+	system := "You are an expert MongoDB database assistant helping developers manage migrations, schema design, and database health using the MongoRK tool. Be concise and practical."
+	return askMongork(s.AIKey, system, question)
+}
+
+// SetMigrationsPath configures the output path for new migrations
+func (a *App) SetMigrationsPath(path string) error {
+	return a.service.SetMigrationsPath(path)
+}
+
+// GetMigrationsPath returns the current migrations output path
+func (a *App) GetMigrationsPath() string {
+	return a.service.GetMigrationsPath()
 }
